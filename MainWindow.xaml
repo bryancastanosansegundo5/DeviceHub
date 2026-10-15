@@ -1,0 +1,754 @@
+<Window x:Class="NexoHub.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NexoHub"
+        xmlns:converters="clr-namespace:NexoHub.Converters"
+        xmlns:controls="clr-namespace:NexoHub.Controls"
+        Title="Nexo · Device Hub" Height="820" Width="1360"
+        MinHeight="700" MinWidth="1080"
+        WindowStartupLocation="CenterScreen"
+        Background="#111A20" Foreground="#E5EDF0"
+        FontFamily="Segoe UI Variable Text">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Canvas" Color="#111A20" />
+        <SolidColorBrush x:Key="Panel" Color="#1D2931" />
+        <SolidColorBrush x:Key="PanelRaised" Color="#24343D" />
+        <SolidColorBrush x:Key="Signal" Color="#53D6C2" />
+        <SolidColorBrush x:Key="Calibration" Color="#F0A35E" />
+        <SolidColorBrush x:Key="TextMain" Color="#E5EDF0" />
+        <SolidColorBrush x:Key="TextMuted" Color="#93A5AC" />
+        <SolidColorBrush x:Key="Line" Color="#31434D" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <converters:InverseBooleanConverter x:Key="InverseBoolConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
+
+        <Style x:Key="NavOption" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="NavBorder" Background="Transparent" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="NavBorder" Property="Background" Value="#24343D" />
+                                <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavBorder" Property="Background" Value="#202E36" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#111A20" />
+            <Setter Property="Background" Value="{StaticResource Signal}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+            <Setter Property="Background" Value="{StaticResource PanelRaised}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder" Background="Transparent" CornerRadius="12" Padding="12">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#2A3A43" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource Signal}" />
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#25343C" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#172229" />
+            <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+            <Setter Property="CaretBrush" Value="{StaticResource Signal}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="SelectionBrush" Value="#536D76" />
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource PanelRaised}" />
+            <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid SnapsToDevicePixels="True">
+                            <ToggleButton x:Name="DropDownToggle" Background="{TemplateBinding Background}"
+                                          Foreground="{TemplateBinding Foreground}" BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"
+                                          Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="22" />
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                      VerticalAlignment="Center" Margin="2,0,4,0" />
+                                    <TextBlock Grid.Column="1" Text="⌄" Foreground="{StaticResource TextMuted}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
+                                </Grid>
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ToggleBorder" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="{StaticResource Signal}" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="ToggleBorder" Property="Opacity" Value="0.55" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                                   IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                                   PopupAnimation="Fade">
+                                <Border Background="{StaticResource PanelRaised}" BorderBrush="{StaticResource Line}"
+                                        BorderThickness="1" CornerRadius="6" MinWidth="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource AncestorType=Popup}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}" Margin="0,3,0,0">
+                                    <ScrollViewer CanContentScroll="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="Popup" Property="MinHeight" Value="24" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#30464F" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#34524F" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="226" />
+            <ColumnDefinition Width="24" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#172229" CornerRadius="18" Padding="18">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top">
+                    <StackPanel Orientation="Horizontal" Margin="4,5,0,32">
+                        <Border Width="34" Height="34" CornerRadius="10" Background="{StaticResource Signal}" VerticalAlignment="Center">
+                            <TextBlock Text="N" Foreground="#111A20" FontWeight="Black" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Nexo" FontSize="21" FontWeight="Bold" Foreground="{StaticResource TextMain}" />
+                            <TextBlock Text="DEVICE HUB" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="Tu espacio" Margin="12,0,0,8" FontSize="11" Foreground="{StaticResource TextMuted}" />
+                    <RadioButton x:Name="DevicesNav" GroupName="Navigation" Tag="Devices" IsChecked="True" Checked="Navigate" Style="{StaticResource NavOption}" Content="Dispositivos" />
+                    <RadioButton GroupName="Navigation" Tag="Profiles" Checked="Navigate" Style="{StaticResource NavOption}" Content="Perfiles" />
+                    <RadioButton GroupName="Navigation" Tag="Macros" Checked="Navigate" Style="{StaticResource NavOption}" Content="Macros" />
+                </StackPanel>
+
+                <Border DockPanel.Dock="Bottom" Background="#1D2931" CornerRadius="12" Padding="13" Margin="0,20,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource Signal}" VerticalAlignment="Center" />
+                            <TextBlock Text="  Búsqueda activa" FontSize="12" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <TextBlock Text="HID · XInput · audio Windows" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="16,5,0,0" />
+                    </StackPanel>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="2">
+            <Grid x:Name="DevicesPage">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="18" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <StackPanel>
+                        <TextBlock Text="Tus dispositivos" FontSize="29" FontWeight="Bold" />
+                        <TextBlock Text="Una vista para el equipo que usas." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="●" Foreground="{StaticResource Signal}" VerticalAlignment="Center" FontSize="11" />
+                        <TextBlock Text="  USB · Bluetooth · audio Windows" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" FontSize="12" Margin="0,0,14,0" />
+                        <Button Content="Buscar ahora" Click="RefreshDevices" Style="{StaticResource QuietButton}" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300" />
+                        <ColumnDefinition Width="18" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="{StaticResource Panel}" CornerRadius="16" Padding="14">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Margin="4,3,4,12">
+                                <TextBlock Text="Conectados" FontSize="15" FontWeight="Bold" />
+                                <TextBlock Text="{Binding ScanStatus}" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,5,0,0" TextWrapping="Wrap" />
+                                <Button Content="{Binding AuxiliaryButtonLabel}" Click="ToggleAuxiliary" Style="{StaticResource QuietButton}"
+                                        Margin="0,10,0,0" HorizontalAlignment="Left" Padding="10,7"
+                                        Visibility="{Binding HasAuxiliaryDevices, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                            <Grid>
+                                <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="92" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <controls:DeviceIllustration Width="82" Height="58" Kind="{Binding VisualKind}" Accent="{StaticResource Signal}" />
+                                                <StackPanel Grid.Column="1" Margin="10,2,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Brand}" Foreground="{StaticResource Signal}" FontSize="9" FontWeight="Bold" Margin="0,3,0,0" />
+                                                    <TextBlock Text="{Binding HardwareId}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,3,0,0" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="215"
+                                            Visibility="{Binding HasNoDevices, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Aún no aparece ningún dispositivo" TextAlignment="Center" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Text="Conecta un equipo por USB o Bluetooth. Nexo lo buscará automáticamente." TextAlignment="Center" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="16" Padding="20">
+                        <Grid>
+                          <Grid Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" MinHeight="120">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="190" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <controls:DeviceIllustration Grid.Column="0" Width="174" Height="112" Kind="{Binding SelectedDevice.VisualKind}" Accent="{StaticResource Signal}" />
+                                <StackPanel Grid.Column="1" Margin="18,2,0,0" VerticalAlignment="Center" MaxWidth="610">
+                                    <TextBlock Text="{Binding SelectedDevice.Brand}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding SelectedDevice.DisplayName}" FontSize="26" FontWeight="Bold" Margin="0,3,0,0" />
+                                    <TextBlock Text="{Binding SelectedDevice.Description}" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,6,100,0" TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Border Background="#24343D" CornerRadius="8" Padding="9,6" Margin="0,0,7,0">
+                                            <TextBlock Text="{Binding SelectedDevice.HardwareId}" FontFamily="Segoe UI Mono" FontSize="10" />
+                                        </Border>
+                                        <Border Background="#24343D" CornerRadius="8" Padding="9,6">
+                                            <TextBlock Text="{Binding SelectedDevice.Transport}" FontSize="10" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#23433F" CornerRadius="12" Padding="10,6">
+                                    <TextBlock Text="{Binding SelectedDevice.Status}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="SemiBold" />
+                                </Border>
+                            </Grid>
+
+                            <TextBlock Grid.Row="2" Text="{Binding SelectedDevice.InterfaceSummary}" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center" />
+
+                            <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel>
+                                    <Border Background="#202E36" CornerRadius="13" Padding="16" Margin="0,0,0,12">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding SelectedDevice.SettingsTitle}" FontSize="17" FontWeight="Bold" />
+                                            <TextBlock Text="{Binding SelectedDevice.SettingsSummary}" Foreground="{StaticResource TextMuted}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,12" />
+                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="PRO X SUPERLIGHT · perfil local" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
+                                                    <TextBlock Text="Estos valores se guardan en Nexo. No se aplican al firmware del ratón hasta completar el adaptador del modelo." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,9" />
+                                                    <UniformGrid Columns="4">
+                                                        <StackPanel Margin="0,0,8,0"><TextBlock Text="DPI 1" FontSize="10" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi1, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                                                        <StackPanel Margin="0,0,8,0"><TextBlock Text="DPI 2" FontSize="10" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi2, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                                                        <StackPanel Margin="0,0,8,0"><TextBlock Text="DPI 3" FontSize="10" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi3, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                                                        <StackPanel><TextBlock Text="DPI 4" FontSize="10" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi4, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                                                    </UniformGrid>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="Tasa de respuesta" FontSize="11" VerticalAlignment="Center" />
+                                                        <ComboBox ItemsSource="{Binding ReportRates}" SelectedItem="{Binding SelectedDevice.LocalProfile.ReportRate}" Width="115" Margin="10,0,0,0" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsAjazzKeyboard, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="AJAZZ AK820 · perfil local de Nexo" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
+                                                    <TextBlock Text="El controlador AJAZZ ofrece ajustes por USB o 2.4 GHz y avisa de que Bluetooth no está soportado. Este teclado anuncia PID 8006; el paquete declara 8009/800A. Ningún valor de esta pantalla se envía al firmware." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,9" />
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Efecto local" FontSize="11" VerticalAlignment="Center" />
+                                                        <ComboBox ItemsSource="{Binding LightingEffects}" SelectedItem="{Binding SelectedDevice.LocalProfile.LightingEffect}" Width="145" Margin="8,0,16,0" />
+                                                        <TextBlock Text="Color RGB" FontSize="11" VerticalAlignment="Center" />
+                                                        <TextBox Text="{Binding SelectedDevice.LocalProfile.LightingColor, UpdateSourceTrigger=PropertyChanged}" Width="85" Margin="8,0,0,0" />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="Brillo" FontSize="11" />
+                                                        <Slider Minimum="0" Maximum="100" Value="{Binding SelectedDevice.LocalProfile.LightingBrightness}" Width="220" Margin="10,0" />
+                                                        <TextBlock Text="{Binding SelectedDevice.LocalProfile.LightingBrightness, StringFormat={}{0}%}" FontSize="11" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="MAPA REAL DEL CONTROLADOR · 81 TECLAS" Foreground="{StaticResource TextMuted}" FontSize="9" FontWeight="Bold" Margin="0,13,0,5" />
+                                                    <Border Background="#1C272D" CornerRadius="8" Padding="5" Height="190">
+                                                        <controls:AjazzKeyboardMap x:Name="AjazzKeyboardMap" KeyColors="{Binding SelectedDevice.LocalProfile.KeyboardKeyColors}" />
+                                                    </Border>
+                                                    <TextBlock Margin="0,6,0,0" FontSize="10" Foreground="{StaticResource TextMuted}">
+                                                        <Run Text="Tecla seleccionada: " />
+                                                        <Run Text="{Binding SelectedKeyName, ElementName=AjazzKeyboardMap}" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" />
+                                                        <Run Text=" · código HID " />
+                                                        <Run Text="{Binding SelectedKeyCode, ElementName=AjazzKeyboardMap}" Foreground="{StaticResource TextMain}" />
+                                                    </TextBlock>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                        <Button Content="Asignar color a tecla" Click="AssignAjazzKeyColor" Style="{StaticResource QuietButton}" Padding="10,7" />
+                                                        <Button Content="Quitar color personalizado" Click="ClearAjazzKeyColor" Style="{StaticResource QuietButton}" Padding="10,7" Margin="8,0,0,0" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="Selecciona una tecla y asígnale el color RGB de arriba. Pulsa Guardar perfil Nexo para conservar los cambios en este PC." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsXboxElite, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Xbox One Elite · perfil local" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
+                                                    <TextBlock Text="Ajusta las zonas LT/RT usando la misma escala 0–10 de Accesorios de Xbox. Nexo conserva estos valores en un perfil local." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,9" />
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <StackPanel Margin="0,0,14,0">
+                                                            <TextBlock Text="LT · punto inicial" FontSize="11" />
+                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.LeftTriggerStart}" />
+                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.LeftTriggerStart, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                                            <TextBlock Text="LT · punto final" FontSize="11" Margin="0,7,0,0" />
+                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.LeftTriggerEnd}" />
+                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.LeftTriggerEnd, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="RT · punto inicial" FontSize="11" />
+                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.RightTriggerStart}" />
+                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.RightTriggerStart, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                                            <TextBlock Text="RT · punto final" FontSize="11" Margin="0,7,0,0" />
+                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.RightTriggerEnd}" />
+                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.RightTriggerEnd, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <Border Background="#24343D" CornerRadius="8" Padding="10" Margin="0,10,0,0">
+                                                        <StackPanel>
+                                                            <TextBlock Text="PRUEBA EN DIRECTO · XINPUT" Foreground="{StaticResource Signal}" FontSize="9" FontWeight="Bold" />
+                                                            <TextBlock Text="{Binding SelectedDevice.XboxInput.ButtonsLabel}" FontSize="11" Margin="0,5,0,8" TextWrapping="Wrap" />
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <StackPanel Margin="0,0,12,0">
+                                                                    <TextBlock Text="LT · entrada" FontSize="10" Foreground="{StaticResource TextMuted}" />
+                                                                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedDevice.XboxInput.LeftTrigger, Mode=OneWay}" Foreground="{StaticResource Signal}" Background="{StaticResource Line}" Height="7" Margin="0,4,0,0" />
+                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.LeftTrigger, StringFormat={}{0}%}" FontSize="10" Margin="0,3,0,0" />
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="1">
+                                                                    <TextBlock Text="RT · entrada" FontSize="10" Foreground="{StaticResource TextMuted}" />
+                                                                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedDevice.XboxInput.RightTrigger, Mode=OneWay}" Foreground="{StaticResource Signal}" Background="{StaticResource Line}" Height="7" Margin="0,4,0,0" />
+                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.RightTrigger, StringFormat={}{0}%}" FontSize="10" Margin="0,3,0,0" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                            <Grid Margin="0,7,0,0">
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="Stick izq.: " FontSize="10" Foreground="{StaticResource TextMuted}" />
+                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.LeftStickLabel}" FontSize="10" />
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <TextBlock Text="Stick der.: " FontSize="10" Foreground="{StaticResource TextMuted}" />
+                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.RightStickLabel}" FontSize="10" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsAstroA50, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="ASTRO A50 · ecualizador de perfil local" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
+                                                    <TextBlock Text="Cinco bandas para preparar un perfil Nexo. El formato .agp se puede archivar; el EQ aún no se transmite al auricular." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,8" />
+                                                    <UniformGrid Columns="5">
+                                                        <StackPanel Margin="3"><TextBlock Text="Bajos" FontSize="9" /><Slider Minimum="-12" Maximum="12" Value="{Binding SelectedDevice.LocalProfile.EqBass}" /><TextBlock Text="{Binding SelectedDevice.LocalProfile.EqBass, StringFormat={}{0} dB}" FontSize="9" /></StackPanel>
+                                                        <StackPanel Margin="3"><TextBlock Text="Medios bajos" FontSize="9" /><Slider Minimum="-12" Maximum="12" Value="{Binding SelectedDevice.LocalProfile.EqLowMid}" /><TextBlock Text="{Binding SelectedDevice.LocalProfile.EqLowMid, StringFormat={}{0} dB}" FontSize="9" /></StackPanel>
+                                                        <StackPanel Margin="3"><TextBlock Text="Medios" FontSize="9" /><Slider Minimum="-12" Maximum="12" Value="{Binding SelectedDevice.LocalProfile.EqMid}" /><TextBlock Text="{Binding SelectedDevice.LocalProfile.EqMid, StringFormat={}{0} dB}" FontSize="9" /></StackPanel>
+                                                        <StackPanel Margin="3"><TextBlock Text="Medios altos" FontSize="9" /><Slider Minimum="-12" Maximum="12" Value="{Binding SelectedDevice.LocalProfile.EqHighMid}" /><TextBlock Text="{Binding SelectedDevice.LocalProfile.EqHighMid, StringFormat={}{0} dB}" FontSize="9" /></StackPanel>
+                                                        <StackPanel Margin="3"><TextBlock Text="Agudos" FontSize="9" /><Slider Minimum="-12" Maximum="12" Value="{Binding SelectedDevice.LocalProfile.EqTreble}" /><TextBlock Text="{Binding SelectedDevice.LocalProfile.EqTreble, StringFormat={}{0} dB}" FontSize="9" /></StackPanel>
+                                                    </UniformGrid>
+                                                </StackPanel>
+                                            </Border>
+                                            <ItemsControl ItemsSource="{Binding SelectedDevice.AudioEndpoints}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                                            <Grid>
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto" />
+                                                                    <RowDefinition Height="Auto" />
+                                                                </Grid.RowDefinitions>
+                                                                <Grid>
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="{Binding FlowLabel}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Signal}" />
+                                                                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                                                    </StackPanel>
+                                                                    <TextBlock Text="{Binding VolumeLabel}" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" />
+                                                                </Grid>
+                                                                <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="148" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Slider Minimum="0" Maximum="100" Value="{Binding Level, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" />
+                                                                    <Button Grid.Column="1" Content="Aplicar en Windows" Tag="{Binding}" Click="ApplyAudioLevel" Style="{StaticResource QuietButton}" Margin="10,0,0,0" Padding="8,7" FontSize="12" />
+                                                                </Grid>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="Este control cambia el nivel de audio de Windows y verifica la lectura posterior." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap"
+                                                       Visibility="{Binding SelectedDevice.HasAudioEndpoints, Converter={StaticResource BoolToVisibility}}" />
+                                            <TextBlock Text="{Binding SelectedDevice.NoAudioEndpointsMessage}"
+                                                       Foreground="{StaticResource TextMuted}" FontSize="12" TextWrapping="Wrap"
+                                                       Visibility="{Binding SelectedDevice.HasAudioEndpoints, Converter={StaticResource InverseBoolToVisibility}}" />
+                                            <TextBlock Text="{Binding ConfigurationStatus}" Foreground="{StaticResource Signal}" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,11,0,0" Visibility="{Binding SelectedDevice.HasLocalEditor, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBox Text="{Binding SelectedDevice.LocalProfile.Name, UpdateSourceTrigger=PropertyChanged}" Width="210" VerticalContentAlignment="Center" ToolTip="Nombre del perfil guardado por Nexo" />
+                                                <Button Content="Guardar perfil Nexo" Click="SaveDeviceProfile" Style="{StaticResource ActionButton}" Margin="10,0,0,0" Padding="12,8" />
+                                                <TextBlock Text="Solo en este PC" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="Funciones verificadas para este modelo" FontSize="15" FontWeight="Bold" Margin="2,0,0,9" />
+                                    <ItemsControl ItemsSource="{Binding SelectedDevice.Capabilities}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#202E36" CornerRadius="10" Padding="12" Margin="0,0,0,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="155" />
+                                                            <ColumnDefinition Width="110" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Top" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{StaticResource Calibration}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Top" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,4,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Identificación y conexiones" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                            <TextBlock Text="{Binding SelectedDevice.IdentificationNote}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                            <TextBlock Text="{Binding SelectedDevice.Detail}" FontFamily="Segoe UI Mono" FontSize="9" TextWrapping="Wrap" Margin="0,7,0,0" MaxHeight="60" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                          </Grid>
+                          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="300"
+                                    Visibility="{Binding HasSelectedDevice, Converter={StaticResource InverseBoolToVisibility}}">
+                            <TextBlock Text="Conecta un dispositivo para empezar" FontSize="19" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
+                            <TextBlock Text="Nexo detectará sus interfaces y mostrará las funciones disponibles para ese modelo." Foreground="{StaticResource TextMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
+                          </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <Grid x:Name="ProfilesPage" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="18" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="Perfiles" FontSize="29" FontWeight="Bold" />
+                        <TextBlock Text="Guarda y organiza perfiles de tus dispositivos." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
+                        <TextBlock Text="{Binding ProfileStatus}" Margin="0,4,0,0" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button Content="Abrir biblioteca" Click="OpenProfileFolder" Style="{StaticResource QuietButton}" Margin="0,0,8,0" />
+                        <Button Content="Importar perfil" Click="ImportProfile" Style="{StaticResource ActionButton}" />
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="330" />
+                        <ColumnDefinition Width="18" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource Panel}" CornerRadius="16" Padding="14">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Biblioteca local" FontSize="15" FontWeight="Bold" Margin="4,3,4,12" />
+                            <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Summary}" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="16" Padding="22">
+                        <Grid>
+                          <Grid Visibility="{Binding HasSelectedProfile, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="14" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="14" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding SelectedProfile.Name}" FontSize="23" FontWeight="Bold" />
+                                <TextBlock Text="{Binding SelectedProfile.Summary}" Foreground="{StaticResource TextMuted}" Margin="0,5,0,0" />
+                            </StackPanel>
+                            <ListBox Grid.Row="2" ItemsSource="{Binding SelectedProfile.Values}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="170" />
+                                                <ColumnDefinition Width="190" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Section}" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Key}" FontWeight="SemiBold" FontSize="12" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Value}" FontFamily="Segoe UI Mono" FontSize="11" TextWrapping="Wrap" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Exportar copia…" Click="ExportProfile" Style="{StaticResource QuietButton}" />
+                            </StackPanel>
+                          </Grid>
+                          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="320"
+                                    Visibility="{Binding HasSelectedProfile, Converter={StaticResource InverseBoolToVisibility}}">
+                            <TextBlock Text="Tu biblioteca está vacía" FontSize="19" FontWeight="Bold" TextAlignment="Center" />
+                            <TextBlock Text="Importa archivos .agp o .astroeq para guardarlos y revisarlos desde Nexo." Foreground="{StaticResource TextMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
+                          </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <Grid x:Name="MacrosPage" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="18" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="Macros" FontSize="29" FontWeight="Bold" />
+                        <TextBlock Text="Graba teclas, clics y rueda; asigna la secuencia a un botón lateral." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
+                    </StackPanel>
+                    <CheckBox Content="Activar asignaciones por software" HorizontalAlignment="Right" VerticalAlignment="Center"
+                              IsChecked="{Binding MacroManager.IsEnabled, Mode=TwoWay}" Foreground="{StaticResource TextMain}"
+                              FontWeight="SemiBold" ToolTip="Mientras esté activo, los botones laterales 4 y 5 ejecutan la macro asignada. Se aplica a cualquier ratón y requiere que Nexo esté abierto." />
+                </Grid>
+                <Grid Grid.Row="2" DataContext="{Binding MacroManager}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="290" />
+                        <ColumnDefinition Width="18" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource Panel}" CornerRadius="16" Padding="14">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Bottom" Content="Nueva macro" Click="NewMacro" Style="{StaticResource ActionButton}" Margin="0,12,0,0" />
+                            <TextBlock DockPanel.Dock="Top" Text="Tus macros" FontSize="15" FontWeight="Bold" Margin="4,3,4,12" />
+                            <ListBox ItemsSource="{Binding Macros}" SelectedItem="{Binding SelectedMacro, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Summary}" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="16" Padding="22">
+                        <Grid>
+                          <Grid Visibility="{Binding HasSelectedMacro, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="14" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="14" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="Nombre" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                    <TextBox Text="{Binding SelectedMacro.Name, UpdateSourceTrigger=PropertyChanged}" FontSize="20" FontWeight="Bold"
+                                             Background="Transparent" Foreground="{StaticResource TextMain}" BorderThickness="0" Padding="0,5" />
+                                </StackPanel>
+                                <Button Content="Guardar" Click="SaveMacro" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource ActionButton}" />
+                            </Grid>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Iniciar grabación" Click="StartMacroRecording" Style="{StaticResource QuietButton}" Margin="0,0,8,0" IsEnabled="{Binding IsRecording, Converter={StaticResource InverseBoolConverter}}" />
+                                <Button Content="Detener" Click="StopMacroRecording" Style="{StaticResource QuietButton}" Margin="0,0,8,0" IsEnabled="{Binding IsRecording}" />
+                                <TextBlock Text="{Binding RecorderStatus}" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="14,0,0,0" />
+                            </StackPanel>
+                            <TextBlock Grid.Row="3" Text="Inicia la grabación, cambia a la aplicación destino y realiza la secuencia. Vuelve a Nexo para detenerla y guardarla."
+                                       Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="2,0,0,0" />
+                            <ListBox Grid.Row="4" ItemsSource="{Binding SelectedMacro.Steps}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="90" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Index}" Foreground="{StaticResource TextMuted}" FontFamily="Segoe UI Mono" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="{Binding DelayLabel}" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Grid Grid.Row="6">
+                                <StackPanel>
+                                    <TextBlock Text="Botón lateral asignado" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                    <ComboBox ItemsSource="{Binding Bindings}" SelectedItem="{Binding SelectedMacro.BindingOption, Mode=TwoWay}"
+                                              DisplayMemberPath="Label" Width="250" HorizontalAlignment="Left" Margin="0,6,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding AssignmentStatus}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                           Foreground="{StaticResource Calibration}" TextWrapping="Wrap" MaxWidth="340" TextAlignment="Right" />
+                            </Grid>
+                          </Grid>
+                          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="320"
+                                    Visibility="{Binding HasSelectedMacro, Converter={StaticResource InverseBoolToVisibility}}">
+                            <TextBlock Text="Crea tu primera macro" FontSize="19" FontWeight="Bold" TextAlignment="Center" />
+                            <TextBlock Text="Graba teclas, clics y rueda. La macro se guarda en este PC y funciona mientras Nexo esté abierto." Foreground="{StaticResource TextMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
+                          </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
+

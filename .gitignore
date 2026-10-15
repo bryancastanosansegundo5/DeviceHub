@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+work/
+dist/*.exe
+dist/*.dll
+dist/*.pdb
+dist/*.deps.json
+dist/*.runtimeconfig.json
+Nexo Device Hub.lnk
