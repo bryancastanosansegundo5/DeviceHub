@@ -92,3 +92,13 @@ Para la lectura pasiva de descriptores se usan las APIs documentadas por Microso
 - La vista REA de `main.js` y `preload.bundle.js` retenida como `ev_8a7af0a84e36814802fe834b4b66a0c4e9e10d5f65c0a7a3e1efe3c07e6ee6f8` cubre 2 fuentes/847.535 bytes y 250.497 nodos AST. Encontró 58 envíos del renderer, 29 handlers y 82 expresiones dinámicas; no emparejó ningún envío con un handler. El grafo queda parcial con 41.396 incógnitas semánticas y 8 archivos sin seleccionar. La llamada del panel DPI aún no está ligada al IPC.
 - Nexo obtiene bajo demanda el DPI actual/default del primer sensor solo si la ranura de ratón anuncia `0x2201`. La lectura real al C539 respondió con 1400 DPI actuales y 800 predeterminados, un sensor y ranura 1. El build y los self-check pasan; no se abrió G HUB/OMM ni se envió ninguna escritura HID.
 - G HUB no está reconstruido al 100 % y Nexo no tiene paridad completa. El bundle principal sigue siendo demasiado costoso para analizarlo como un único AST en este host; los resultados parciales no prueban que no existan más funciones o rutas.
+
+## Seguimiento del backend G HUB y OMM
+
+La inspección estática selectiva de main.js/preload.bundle.js confirmó el uso del agente local lghub_agent.exe, el WebSocket de localhost:9010 y el canal SOCKET_SEND. El análisis no emparejó los envíos dinámicos con handlers y dejó ocho archivos sin seleccionar. El endpoint onboard_profiles/tag_configuration y las acciones DPI permanecen sin una ruta completa desde el renderer hasta un comando de dispositivo.
+
+Un escaneo estático del agente local encontró las rutas de configuración onboard y cadenas de la implementación Feature8100/HID++. No se obtuvo desensamblado ni call graph debido a la falta de proveedor nativo configurado en Windows; esos literales no prueban que el endpoint invoque la rutina de escritura ni que el ratón acepte el perfil.
+
+En OMM, el análisis administrado sí vincula los setters de tasa al objeto OnboardProfile y a Feature8100.WriteProfileData, que cruza hacia una función nativa de escritura de sector. El setter del valor no implica por sí solo una escritura del perfil. El filtro de ratón es genérico y no se ha demostrado compatibilidad específica con VID/PID C539.
+
+La reconstrucción global de G HUB no está completa y Nexo no tiene paridad total de funciones o interfaz. Siguen pendientes la ruta completa del renderer y el agente, compatibilidad OMM del C539 y una lectura posterior a escritura/reconexión que confirme persistencia. No se hicieron escrituras al dispositivo.
