@@ -25,7 +25,7 @@ La huella acumulada es `(líneas añadidas + eliminadas frente a d621167) / lín
 | `ViewModels/DeviceCardViewModel.cs` | **14,5 %** | Adapta la ficha al ratón exacto y actualiza el estado HID++ observado. |
 | `ViewModels/MainViewModel.cs` | **41,3 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas, evita solaparla con el refresco y presenta el estado de 0x8060. |
 | `checks/NexoHub.Checks/Program.cs` | **100,9 %** | Comprueba el framing HID++, filtro de versión, respuesta de tipo, eco ping, respuesta índice cero y presencia de 0x8060. |
-| `docs/device-inventory-analysis.md` | **141,4 %** | Registra los límites REA de G HUB, el filtro OMM, wrappers DPI/perfiles/polling y el alcance de 0x8060. |
+| `docs/device-inventory-analysis.md` | **144,8 %** | Registra los límites REA de G HUB, el filtro OMM, wrappers DPI/perfiles/polling y el alcance de 0x8060. |
 | `README.md` | **3,5 %** | Corrige el modelo Logitech mostrado y aclara que DPI/polling todavía se guardan solo en Nexo. |
 | `dist/LEEME.md` | **18,2 %** | Corrige el nombre del ratón y el estado local de la función en las notas del paquete. |
 | `AVANCES/APLICACION.md` | **100 %** | Mantiene este registro de cambios, evidencias y trabajo pendiente. |
@@ -111,6 +111,13 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 
 - REA amplió el seguimiento CIL de OMM: `Feature8061.GetDeviceCapabilities` y `GetActualReportRateList` llaman a funciones nativas `feature_8061.*` y convierten el resultado a `ReportRates` (`ev_ae82221e0fc1fa09c37e9aba187f50b68a76054754640e6db7689b491bd7d085`). La frontera nativa sigue sin revelar framing, bytes ni un mapeo probado entre la clase interna `Feature8061` y el ID HID++.
 - Logitech cataloga `0x8060` como Adjustable Report Rate y define el reporte largo de 20 bytes. Nexo hace `GetFeature(0x8060)` solo durante la acción manual y solo para el tipo `0x03`; muestra índice, no anunciada, o sin respuesta/error. El índice cero no es una consulta fallida. No lee ni cambia el polling.
-- Archivos tocados en esta continuación: `Services/LogitechHidppCapabilityReader.cs` (**100 %** de huella acumulada), `ViewModels/MainViewModel.cs` (**41,3 %**), `checks/NexoHub.Checks/Program.cs` (**100,9 %**), `docs/device-inventory-analysis.md` (**141,4 %**) y este archivo (**100 %**, creado desde la base). El porcentaje usa la fórmula de la sección «Archivos tocados»; no es cobertura funcional.
+- Archivos tocados en esta continuación: `Services/LogitechHidppCapabilityReader.cs` (**100 %** de huella acumulada), `ViewModels/MainViewModel.cs` (**41,3 %**), `checks/NexoHub.Checks/Program.cs` (**100,9 %**), `docs/device-inventory-analysis.md` (**144,8 %**) y este archivo (**100 %**, creado desde la base). El porcentaje usa la fórmula de la sección «Archivos tocados»; no es cobertura funcional.
 - Validación: `dotnet build .\NexoHub.csproj -c Release /m:1 /p:UseSharedCompilation=false` terminó con 0 errores y 0 advertencias; los 7 grupos de `NexoHub.Checks` pasaron; `git diff --check` no encontró errores.
 - No se hizo una consulta nueva al hardware ni una escritura HID en esta continuación. La lista de tareas pendientes permanece abierta; en particular, faltan los cuerpos nativos de OMM y el recorrido completo de configuración DPI de G HUB.
+
+## Investigación G HUB · 16 de octubre de 2026
+
+- Una pasada REA acotada a `main.js` y `preload.bundle.js` (512 MiB, 60 s, 6.000 nodos) encontró el envío dinámico `A.p.GL_SOCKET_SEND` y un manejador literal `GL_SOCKET_SEND`. No se probó que ambos canales coincidan ni se trazó la operación posterior. No encontró `dpiTable` ni `updateMouseSettingsWrapper` en esos dos archivos; no se obtuvo la conexión UI → IPC → backend.
+- G HUB sigue sin ingeniería inversa completa y no hay paridad total con su interfaz. Evité repetir el parseo del `app.min.js` de 7,37 MB porque los intentos previos agotaron memoria antes de parsear; los resultados obtenidos hasta ahora son parciales.
+- Archivos tocados en esta actualización: `docs/device-inventory-analysis.md` (**144,8 %** de huella acumulada) y `AVANCES/APLICACION.md` (**100 %**, archivo creado desde la base). No se modificó código ni se consultó el ratón.
+- Al ser solo documentación, no se repitieron build ni checks; `git diff --check` se ejecutó correctamente antes de registrar este avance.
