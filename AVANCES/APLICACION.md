@@ -25,7 +25,7 @@ La huella acumulada es `(líneas añadidas + eliminadas frente a d621167) / lín
 | `ViewModels/DeviceCardViewModel.cs` | **14,5 %** | Adapta la ficha al ratón exacto y actualiza el estado HID++ observado. |
 | `ViewModels/MainViewModel.cs` | **38,6 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas y evita solaparla con el refresco. |
 | `checks/NexoHub.Checks/Program.cs` | **93,9 %** | Añade checks del framing HID++, filtro de versión, eco ping, GetDeviceType y descripción del descriptor. |
-| `docs/device-inventory-analysis.md` | **106,9 %** | Registra el filtro OMM extraído, el enrutamiento de ranuras, el byte de tipo y el alcance del lector. |
+| `docs/device-inventory-analysis.md` | **120,7 %** | Registra los límites REA de G HUB, el filtro OMM, el enrutamiento de ranuras y el byte de tipo. |
 | `README.md` | **3,5 %** | Corrige el modelo Logitech mostrado y aclara que DPI/polling todavía se guardan solo en Nexo. |
 | `dist/LEEME.md` | **18,2 %** | Corrige el nombre del ratón y el estado local de la función en las notas del paquete. |
 | `AVANCES/APLICACION.md` | **100 %** | Mantiene este registro de cambios, evidencias y trabajo pendiente. |
@@ -50,6 +50,10 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 - La UI de DPI actualiza una tabla de niveles y el estado de perfil con `activeDpi`, `defaultDpi` y `advancedDpiTable`; la tasa de informe tiene acción/ruta propia y se vincula al perfil cuando el modo a bordo está activo.
 - El bundle no revela los informes HID ni vincula ese flujo genérico al receptor C539. El análisis semántico de `app.min.js` agotó el límite de memoria, así que la cobertura sigue siendo parcial.
 - Evidencia de búsqueda/extracción: `ev_ae8f0ca6b269529dbf5eb1e5d063387919199d717735d9512ef99cadb98a5977`; búsqueda posterior del bundle `ev_441f81b6fce0407f27c82f3b94b94289bdc0f4169ab9bd463949c1129d11d1a5`.
+- REA verificó el inventario de 269 entradas del ASAR y los hashes de `app.min.js` (7.369.426 bytes), `main.js` (836.162 bytes), `preload.bundle.js` (11.373 bytes) y `dpi-tester.min.js.map` (354.689 bytes). El mapa de fuentes legible corresponde al overlay de prueba DPI (`DpiTesterOverlay.tsx`), no a la pantalla completa de configuración del ratón.
+- Un nuevo análisis aislado de `app.min.js` (768 MB, 90 s y 6.000 nodos) leyó el archivo, pero volvió a agotar memoria antes de parsearlo: cero archivos JS parseados, cero nodos AST y cero módulos. Evidencias: análisis `ev_84a5b33458ee62ac03a20ac307f723b13ea2f60cce393b402b586f91133a6ec0`, vista `ev_bca5675963d86d69324e91790d75264a1b37f1cb9c77afaa3935975b2574ccb1`.
+- El análisis conjunto de `main.js` y `preload.bundle.js` sí parseó ambos archivos y observó 8 APIs de `contextBridge`, 29 canales literales, 82 operaciones IPC dinámicas, 58 envíos del renderer y 29 manejadores del proceso principal. No emparejó envíos con manejadores; la gráfica semántica quedó parcial y no se analizaron los 8 archivos restantes. Evidencia: `ev_688043e39d04ca82834daf76bcb6bddd99752834c204b75b573636d45be90d68`.
+- **Paridad de interfaz no alcanzada.** La comparación del código Nexo con la captura solo cubre la pantalla DPI: Nexo edita cuatro valores fijos y polling en un perfil local. No tiene el deslizador con etapa activa, gestión de etapas, asignación de cambio DPI a botones, restablecimiento ni selector de perfil de G HUB; tampoco aplica DPI/polling al hardware.
 
 ### OMM
 
@@ -77,7 +81,8 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 1. Determinar si la DLL convierte el `Mouse=3` del protocolo al `BaseDeviceType.MOUSE=2` interno de OMM y si ese resultado hace que el C539 pase el filtro real.
 2. Recuperar los cuerpos nativos C++/CLI de OMM si se necesita reconstruir sus reportes; el análisis actual no revela bytes ni secuencias.
 3. Implementar lectura/escritura DPI, polling y perfiles a bordo solo tras confirmar comandos, acuses, lectura posterior y persistencia después de reconectar.
-4. Recalcular esta tabla al registrar la próxima iteración.
+4. Completar el mapa de interfaz del G PRO Wireless en G HUB y recuperar el recorrido renderer → preload → proceso principal → backend; el bundle principal sigue sin parsearse y no hay paridad confirmada.
+5. Recalcular esta tabla al registrar la próxima iteración.
 
 ## Punto de continuación · 16 de octubre de 2026
 
