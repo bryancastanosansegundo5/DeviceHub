@@ -25,6 +25,7 @@ public sealed class DeviceCardViewModel
     public string LocalProfileKey => Device.ModelKey.Length > 0 ? Device.ModelKey : Device.Id;
     public ObservableCollection<AudioEndpointViewModel> AudioEndpoints { get; }
     public string DisplayName => Adapter.DisplayName;
+    public string LogitechProfileTitle => $"{Brand} · {DisplayName}";
     public string Brand => Adapter.Brand;
     public string Status => Adapter.Status;
     public string Description => Adapter.Description;
@@ -51,7 +52,9 @@ public sealed class DeviceCardViewModel
     };
     public string VisualKind => Device.Kind.ToString();
     public bool IsMouse => Device.Kind == DeviceKind.Mouse;
-    public bool IsLogitechMouse => Device.ModelKey == "logitech-pro-x-superlight";
+    public bool IsLogitechMouse => Device.ModelKey is "logitech-pro-wireless" or "logitech-pro-x-superlight";
+    public int LogitechDpiMaximum => 25600;
+    public string LogitechDpiRange => $"Cuatro etapas · 100–{LogitechDpiMaximum:N0} DPI";
     public bool IsMicrophone => Device.Kind == DeviceKind.Microphone;
     public bool IsHeadset => Device.Kind == DeviceKind.Headset;
     public bool IsGamepad => Device.Kind == DeviceKind.Gamepad;
@@ -73,7 +76,8 @@ public sealed class DeviceCardViewModel
     };
     public string SettingsSummary => Device.Kind switch
     {
-        DeviceKind.Mouse => "PRO X SUPERLIGHT · la pantalla muestra las funciones de G HUB; el perfil Nexo se guarda localmente hasta validar el enlace al ratón.",
+        DeviceKind.Mouse when IsLogitechMouse => $"{DisplayName} · el perfil Nexo se guarda localmente hasta validar la aplicación al ratón.",
+        DeviceKind.Mouse => "Modelo no identificado; los controles específicos del ratón están desactivados.",
         DeviceKind.Microphone => "Cambia el nivel de entrada de Windows y comprueba que el micrófono Yeti Classic esté activo.",
         DeviceKind.Headset => "Ajusta los endpoints Game/Voice en Windows. EQ, sidetone y perfiles de memoria requieren el protocolo ASTRO validado.",
         DeviceKind.Gamepad => "Modelo Xbox One Elite leído de Windows. XInput permite probar botones y ejes; los perfiles locales no se escriben al mando.",

@@ -43,14 +43,24 @@ public sealed class DeviceLocalProfileLibrary
     {
         if (string.IsNullOrWhiteSpace(profile.Name)) throw new InvalidDataException("Escribe un nombre para el perfil.");
 
+        var dpiMaximum = modelKey switch
+        {
+            "logitech-pro-wireless" => 25600,
+            "logitech-pro-x-superlight" => 25600,
+            _ => 0
+        };
+        if (dpiMaximum > 0)
+        {
+            foreach (var dpi in new[] { profile.Dpi1, profile.Dpi2, profile.Dpi3, profile.Dpi4 })
+                if (dpi is < 100 || dpi > dpiMaximum)
+                    throw new InvalidDataException($"El DPI debe estar entre 100 y {dpiMaximum}.");
+            if (profile.ReportRate is not (125 or 250 or 500 or 1000))
+                throw new InvalidDataException("La tasa de respuesta debe ser 125, 250, 500 o 1000 Hz.");
+            return;
+        }
+
         switch (modelKey)
         {
-            case "logitech-pro-x-superlight":
-                foreach (var dpi in new[] { profile.Dpi1, profile.Dpi2, profile.Dpi3, profile.Dpi4 })
-                    if (dpi is < 100 or > 25600) throw new InvalidDataException("El DPI debe estar entre 100 y 25600.");
-                if (profile.ReportRate is not (125 or 250 or 500 or 1000))
-                    throw new InvalidDataException("La tasa de respuesta debe ser 125, 250, 500 o 1000 Hz.");
-                break;
             case "ajazz-ak820":
                 if (profile.LightingBrightness is < 0 or > 100)
                     throw new InvalidDataException("El brillo debe estar entre 0 y 100.");

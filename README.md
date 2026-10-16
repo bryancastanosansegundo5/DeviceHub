@@ -23,7 +23,7 @@ La detección depende del hardware conectado y de los nombres que presente Windo
 | --- | --- |
 | ASTRO A50 Wireless | Niveles de los endpoints de audio de Windows; biblioteca local de perfiles ASTRO. |
 | Yeti Classic | Niveles de entrada y salida de audio de Windows. |
-| Logitech PRO X SUPERLIGHT | Editor de perfil local para niveles DPI y polling. La identificación se infiere del receptor LIGHTSPEED conectado. |
+| Logitech G PRO Wireless | Editor de perfil local para niveles DPI y polling. La detección usa el receptor C539 y el nombre PnP `PRO WIRELESS`; Nexo todavía no envía esos ajustes al ratón. |
 | Xbox One Elite | Estado XInput en directo y umbrales locales de LT/RT. |
 | AJAZZ AK820 | Mapa de teclado de 81 teclas, previsualización de color por tecla y perfil local. El PID detectado difiere de los identificadores del paquete AK820 Pro; consulta el análisis antes de asumir compatibilidad. |
 

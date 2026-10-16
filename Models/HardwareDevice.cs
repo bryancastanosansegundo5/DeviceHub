@@ -16,7 +16,8 @@ public sealed record HardwareDevice(
     string ContainerId = "",
     bool IsAuxiliary = false,
     string IdentificationNote = "",
-    IReadOnlyList<AudioEndpointInfo>? AudioEndpoints = null);
+    IReadOnlyList<AudioEndpointInfo>? AudioEndpoints = null,
+    IReadOnlyList<HidInterfaceInfo>? HidInterfaces = null);
 
 public enum DeviceKind
 {
@@ -37,6 +38,16 @@ public enum AudioFlow
 }
 
 public sealed record AudioEndpointInfo(string Id, string Name, AudioFlow Flow, int Level);
+
+public sealed record HidInterfaceInfo(
+    ushort UsagePage,
+    ushort Usage,
+    ushort InputReportBytes,
+    ushort OutputReportBytes,
+    ushort FeatureReportBytes)
+{
+    internal string Path { get; init; } = string.Empty;
+}
 
 public sealed record CapabilityInfo(string Name, string Status, string Detail);
 

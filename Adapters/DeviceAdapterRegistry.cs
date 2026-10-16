@@ -39,16 +39,34 @@ public sealed class DeviceAdapterRegistry
         public bool Matches(HardwareDevice device) =>
             device.VendorId == 0x046D || device.Manufacturer.Contains("Logitech", StringComparison.OrdinalIgnoreCase);
 
-        public AdapterInfo Describe(HardwareDevice device) => new(
-            "LOGITECH G",
-            FriendlyName(device, "PRO X SUPERLIGHT"),
-            "Ratón detectado por LIGHTSPEED",
-            "El receptor está presente. DPI y tasa de respuesta necesitan el protocolo específico del ratón.",
-            [
-                new("DPI", "Perfil local", "Puedes guardar valores en Nexo; no se escriben al ratón todavía."),
-                new("Tasa de respuesta", "Pendiente", "No se envía ninguna escritura HID hasta validar el modelo y la respuesta."),
-                new("Memoria integrada", "Sin validar", "La persistencia a bordo requiere lectura de vuelta y reconexión probadas.")
-            ]);
+        public AdapterInfo Describe(HardwareDevice device)
+        {
+            if (device.ModelKey is not ("logitech-pro-wireless" or "logitech-pro-x-superlight"))
+                return new("LOGITECH G", FriendlyName(device, "Dispositivo Logitech"), "Dispositivo Logitech detectado",
+                    "Windows detecta hardware Logitech, pero el modelo no está identificado para habilitar controles.",
+                    [new("Configuración", "No identificada", "Los controles específicos requieren identificar el modelo exacto.")]);
+
+            return new("LOGITECH G", FriendlyName(device, "Ratón Logitech"), "Ratón identificado · perfil Nexo local",
+                "DPI y tasa de respuesta se pueden guardar localmente. La aplicación al ratón y la memoria integrada siguen pendientes de validación.",
+                [
+                    new("DPI", "Perfil local", "Los valores se guardan en Nexo; todavía no se envían al ratón."),
+                    new("Tasa de respuesta", "Perfil local", "El valor se guarda en Nexo; todavía no se envía al ratón."),
+                    DescribeHidInterfaces(device),
+                    new("HID++ / OMM", "Sin consultar", "La consulta manual comprobará la versión y las features exigidas por el filtro de OMM. Solo lectura; no confirma el formato ni escribe perfiles."),
+                    new("Memoria integrada", "Sin validar", "La persistencia a bordo requiere lectura de vuelta y reconexión probadas.")
+                ]);
+        }
+
+        private static CapabilityInfo DescribeHidInterfaces(HardwareDevice device)
+        {
+            var interfaces = (device.HidInterfaces ?? []).Where(item => item.UsagePage >= 0xFF00).ToArray();
+            var summary = interfaces.Length == 0
+                ? "Windows no devolvió colecciones de página 0xFFxx."
+                : string.Join(" · ", interfaces.Select(item =>
+                    $"{item.UsagePage:X4}/{item.Usage:X4}, IN {item.InputReportBytes}, OUT {item.OutputReportBytes}, feature {item.FeatureReportBytes}"));
+            return new("Descriptor HID", interfaces.Length == 0 ? "No leído" : $"{interfaces.Length} colección(es)",
+                $"Datos pasivos del descriptor de Windows; no confirman funciones HID++ del ratón. {summary}");
+        }
     }
 
     private sealed class YetiAdapter : IDeviceAdapter
@@ -122,6 +140,7 @@ public sealed class DeviceAdapterRegistry
     {
         if (device.ModelKey == "blue-yeti-classic") return "Yeti Classic";
         if (device.ModelKey == "ajazz-ak820") return "AK820 · variante Pro probable";
+        if (device.ModelKey == "logitech-pro-wireless") return "PRO WIRELESS";
         var product = device.Product.Trim();
         return string.IsNullOrWhiteSpace(product) || product.Equals("HID Device", StringComparison.OrdinalIgnoreCase)
             ? fallback

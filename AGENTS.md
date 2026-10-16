@@ -14,7 +14,7 @@ Prioridades del usuario:
 
 - Aplicación de escritorio WPF para Windows, con .NET 10.
 - La detección agrupa interfaces HID por dispositivo físico y las combina con XInput y endpoints conocidos de Windows. La búsqueda automática se repite cada 12 segundos; receptores y controladores internos aparecen detrás de **Mostrar otros**.
-- El inventario de este PC reconoce ASTRO A50, Yeti Classic, Xbox One Elite, un receptor LIGHTSPEED asociado al PRO X SUPERLIGHT por comparación con G HUB, y un AJAZZ AK820 con variante Pro probable por la diferencia de PID USB.
+- El inventario de este PC reconoce ASTRO A50, Yeti Classic, Xbox One Elite, el Logitech G PRO Wireless (`VID_046D&PID_C539`, nombre PnP `PRO WIRELESS`) y un AJAZZ AK820 con variante Pro probable por la diferencia de PID USB. El PID C547 por sí solo no identifica el modelo Logitech emparejado.
 - Cada ficha tiene una miniatura vectorial por tipo, configuración específica y una lista de capacidades con evidencia y estado.
 - El editor AJAZZ muestra el layout real de 81 teclas obtenido del paquete instalado; permite previsualizar y guardar colores por tecla en el perfil local Nexo.
 - Los niveles de entrada/salida de Yeti y ASTRO se leen y aplican a endpoints de Windows por Core Audio; no se confunden con cambios al hardware.

@@ -59,7 +59,8 @@ public sealed class HidDeviceEnumerator
             root.RootInstanceId.StartsWith("BTH", StringComparison.OrdinalIgnoreCase) ? "Bluetooth / HID" : "USB / HID",
             hidPaths.Length, string.Join(Environment.NewLine, hidPaths),
             ModelKey: identity.ModelKey, Kind: identity.Kind, InstanceId: root.RootInstanceId,
-            ContainerId: root.ContainerId, IsAuxiliary: identity.IsAuxiliary, IdentificationNote: identity.Note);
+            ContainerId: root.ContainerId, IsAuxiliary: identity.IsAuxiliary, IdentificationNote: identity.Note,
+            HidInterfaces: endpoints.Select(endpoint => endpoint.HidInterface).OfType<HidInterfaceInfo>().Distinct().ToArray());
     }
 
     private static Identity ResolveIdentity(Endpoint root, IReadOnlyList<Endpoint> endpoints)
@@ -77,8 +78,8 @@ public sealed class HidDeviceEnumerator
             return new("astro-a50", "ASTRO Gaming", "ASTRO A50", vendor, product, DeviceKind.Headset, false, "VID/PID del Astro Command Center; audio USB disponible en Windows.");
         if ((vendor == 0xB58E && product == 0x9E84) || text.Contains("Yeti Classic", StringComparison.OrdinalIgnoreCase))
             return new("blue-yeti-classic", "Blue Microphones", "Yeti Classic", vendor, product, DeviceKind.Microphone, false, "Nombre de Windows y firma yeti_classic en G HUB.");
-        if (vendor == 0x046D && product == 0xC547)
-            return new("logitech-pro-x-superlight", "Logitech G", "PRO X SUPERLIGHT", vendor, product, DeviceKind.Mouse, false, "La captura de G HUB identifica el ratón; Windows identifica este receptor como LIGHTSPEED.");
+        if (vendor == 0x046D && product == 0xC539 && text.Contains("PRO WIRELESS", StringComparison.OrdinalIgnoreCase))
+            return new("logitech-pro-wireless", "Logitech G", "PRO WIRELESS", vendor, product, DeviceKind.Mouse, false, "Windows identifica el receptor como PRO WIRELESS; la captura de G HUB confirma el nombre del modelo.");
         if (vendor == 0x046D && product == 0xC52B)
             return new("logitech-usb-receiver", "Logitech", "Receptor Logitech USB", vendor, product, DeviceKind.Receiver, true, "Windows registra Logitech USB Input Device; no se identificó el periférico emparejado.");
         if ((vendor == 0x0C45 && product == 0x8006) || text.Contains("AK820", StringComparison.OrdinalIgnoreCase))
@@ -138,13 +139,28 @@ public sealed class HidDeviceEnumerator
                 product = ReadString(handle, HidD_GetProductString);
             }
             return new(ids.Vendor, ids.Product, manufacturer, product, path, root.InstanceId,
-                root.ContainerId, root.FriendlyName, root.Description, root.Manufacturer);
+                root.ContainerId, root.FriendlyName, root.Description, root.Manufacturer,
+                !handle.IsInvalid ? ReadInterfaceInfo(handle, path) : null);
         }
         finally
         {
             Marshal.FreeHGlobal(detail);
             Marshal.FreeHGlobal(deviceInfoPointer);
         }
+    }
+
+    private static HidInterfaceInfo? ReadInterfaceInfo(SafeFileHandle handle, string path)
+    {
+        if (!HidD_GetPreparsedData(handle, out var preparsedData) || preparsedData == IntPtr.Zero) return null;
+        try
+        {
+            var caps = new HidpCaps { Reserved = new ushort[17] };
+            return HidP_GetCaps(preparsedData, ref caps) == HidpStatusSuccess
+                ? new(caps.UsagePage, caps.Usage, caps.InputReportByteLength,
+                    caps.OutputReportByteLength, caps.FeatureReportByteLength) { Path = path }
+                : null;
+        }
+        finally { HidD_FreePreparsedData(preparsedData); }
     }
 
     private static PnpParent FindPhysicalParent(uint devInst, string instanceId)
@@ -226,7 +242,8 @@ public sealed class HidDeviceEnumerator
     }
 
     private sealed record Endpoint(ushort VendorId, ushort ProductId, string Manufacturer, string Product, string Path,
-        string RootInstanceId, string ContainerId, string RootFriendlyName, string RootDescription, string RootManufacturer);
+        string RootInstanceId, string ContainerId, string RootFriendlyName, string RootDescription, string RootManufacturer,
+        HidInterfaceInfo? HidInterface);
     private sealed record Identity(string ModelKey, string Manufacturer, string Name, ushort VendorId, ushort ProductId,
         DeviceKind Kind, bool IsAuxiliary, string Note);
     private readonly record struct PnpParent(string InstanceId, string ContainerId, string FriendlyName, string Description, string Manufacturer);
@@ -234,10 +251,33 @@ public sealed class HidDeviceEnumerator
     [StructLayout(LayoutKind.Sequential)] private struct DeviceInterfaceData { public uint Size; public Guid InterfaceClassGuid; public uint Flags; public IntPtr Reserved; }
     [StructLayout(LayoutKind.Sequential)] private struct DeviceInfoData { public uint Size; public Guid ClassGuid; public uint DevInst; public IntPtr Reserved; }
     [StructLayout(LayoutKind.Sequential)] private struct HidAttributes { public int Size; public ushort VendorId; public ushort ProductId; public ushort VersionNumber; }
+    [StructLayout(LayoutKind.Sequential)] private struct HidpCaps
+    {
+        public ushort Usage;
+        public ushort UsagePage;
+        public ushort InputReportByteLength;
+        public ushort OutputReportByteLength;
+        public ushort FeatureReportByteLength;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 17)] public ushort[] Reserved;
+        public ushort NumberLinkCollectionNodes;
+        public ushort NumberInputButtonCaps;
+        public ushort NumberInputValueCaps;
+        public ushort NumberInputDataIndices;
+        public ushort NumberOutputButtonCaps;
+        public ushort NumberOutputValueCaps;
+        public ushort NumberOutputDataIndices;
+        public ushort NumberFeatureButtonCaps;
+        public ushort NumberFeatureValueCaps;
+        public ushort NumberFeatureDataIndices;
+    }
     private delegate bool HidStringReader(SafeFileHandle handle, IntPtr buffer, int bufferLength);
+    private const uint HidpStatusSuccess = 0x00110000;
 
     [DllImport("hid.dll")] private static extern void HidD_GetHidGuid(out Guid hidGuid);
     [DllImport("hid.dll")] [return: MarshalAs(UnmanagedType.U1)] private static extern bool HidD_GetAttributes(SafeFileHandle handle, ref HidAttributes attributes);
+    [DllImport("hid.dll")] [return: MarshalAs(UnmanagedType.U1)] private static extern bool HidD_GetPreparsedData(SafeFileHandle handle, out IntPtr preparsedData);
+    [DllImport("hid.dll")] [return: MarshalAs(UnmanagedType.U1)] private static extern bool HidD_FreePreparsedData(IntPtr preparsedData);
+    [DllImport("hid.dll", EntryPoint = "HidP_GetCaps")] private static extern uint HidP_GetCaps(IntPtr preparsedData, ref HidpCaps capabilities);
     [DllImport("hid.dll", CharSet = CharSet.Unicode)] [return: MarshalAs(UnmanagedType.U1)] private static extern bool HidD_GetManufacturerString(SafeFileHandle handle, IntPtr buffer, int bufferLength);
     [DllImport("hid.dll", CharSet = CharSet.Unicode)] [return: MarshalAs(UnmanagedType.U1)] private static extern bool HidD_GetProductString(SafeFileHandle handle, IntPtr buffer, int bufferLength);
     [DllImport("setupapi.dll", SetLastError = true)] private static extern IntPtr SetupDiGetClassDevs(ref Guid classGuid, IntPtr enumerator, IntPtr hwndParent, uint flags);

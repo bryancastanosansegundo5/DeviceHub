@@ -66,8 +66,20 @@ static void CheckMacroRoundTrip(string root)
 static void CheckDeviceProfileRoundTrip(string root)
 {
     var library = new DeviceLocalProfileLibrary(Path.Combine(root, "device-profiles"));
-    var profile = new DeviceLocalProfile { Name = "Prueba", Dpi3 = 1450, ReportRate = 500, LightingColor = "FF8844" };
+    var profile = new DeviceLocalProfile { Name = "Prueba", Dpi3 = 1450, Dpi4 = 25600, ReportRate = 500, LightingColor = "FF8844" };
     profile.KeyboardKeyColors["0x04"] = "00AAFF";
+    library.Save("logitech-pro-wireless", profile);
+    var proWireless = library.Load("logitech-pro-wireless");
+    Assert(proWireless.Dpi3 == 1450 && proWireless.Dpi4 == 25600, "el G PRO Wireless conserva el DPI y acepta el máximo documentado de 25600");
+    var invalidLogitechDpiRejected = false;
+    try { library.Save("logitech-pro-wireless", new DeviceLocalProfile { Name = profile.Name, Dpi4 = 25601 }); }
+    catch (InvalidDataException) { invalidLogitechDpiRejected = true; }
+    Assert(invalidLogitechDpiRejected, "el G PRO Wireless rechaza DPI sobre el máximo actualizado de 25600");
+    var invalidLogitechPollingRejected = false;
+    try { library.Save("logitech-pro-wireless", new DeviceLocalProfile { Name = profile.Name, ReportRate = 333 }); }
+    catch (InvalidDataException) { invalidLogitechPollingRejected = true; }
+    Assert(invalidLogitechPollingRejected, "el G PRO Wireless rechaza tasas de respuesta que no están en la lista permitida");
+
     library.Save("logitech-pro-x-superlight", profile);
     var loaded = library.Load("logitech-pro-x-superlight");
     Assert(loaded.Name == "Prueba" && loaded.Dpi3 == 1450 && loaded.ReportRate == 500 && loaded.LightingColor == "FF8844" &&
@@ -95,22 +107,49 @@ static void CheckAdapterSelection()
     var registry = new DeviceAdapterRegistry();
     var astro = registry.Describe(new HardwareDevice("astro", "Astro Gaming", "Astro A50", 0x9886, 0x0015, "USB/HID", 2, ""));
     var logitech = registry.Describe(new HardwareDevice("logi", "Logitech", "G device", 0x046D, 0xC547, "USB/HID", 1, ""));
+    var proWireless = registry.Describe(new HardwareDevice("pro-wireless", "Logitech G", "PRO WIRELESS", 0x046D, 0xC539,
+        "USB/HID", 1, "", ModelKey: "logitech-pro-wireless", Kind: DeviceKind.Mouse,
+        HidInterfaces: [new(0xFF00, 0x0002, 20, 20, 0)]));
     var xbox = registry.Describe(new HardwareDevice("xbox", "Microsoft", "Xbox controller", 0x045E, 0, "XInput", 0, "", 0));
     var yeti = registry.Describe(new HardwareDevice("yeti", "Blue Microphones", "Yeti Classic", 0xB58E, 0x9E84,
         "USB Audio", 0, "", ModelKey: "blue-yeti-classic", Kind: DeviceKind.Microphone));
     var keyboard = registry.Describe(new HardwareDevice("ak820", "AJAZZ", "AK820", 0x0C45, 0x8006,
         "USB/HID", 1, "", ModelKey: "ajazz-ak820", Kind: DeviceKind.Keyboard));
-    Assert(astro.Brand == "ASTRO" && logitech.Brand == "LOGITECH G" && xbox.Brand == "XBOX" &&
+    Assert(astro.Brand == "ASTRO" && logitech.Brand == "LOGITECH G" &&
+        !logitech.DisplayName.Contains("SUPERLIGHT", StringComparison.OrdinalIgnoreCase) &&
+        proWireless.DisplayName == "PRO WIRELESS" && xbox.Brand == "XBOX" &&
         yeti.Brand == "BLUE" && keyboard.Brand == "AJAZZ",
         "los modelos piloto seleccionan su adaptador correspondiente");
+    Assert(proWireless.Capabilities.Single(item => item.Name == "Descriptor HID").Detail.Contains("FF00/uso 0002", StringComparison.Ordinal),
+        "la ficha Logitech incluye datos del descriptor sin afirmar compatibilidad HID++");
 }
 
 static void CheckLiveInventory()
 {
     var endpoints = new WindowsAudioEndpointService().Enumerate();
     var devices = new DeviceDiscoveryService().Scan();
+    var proWireless = devices.FirstOrDefault(device => device.VendorId == 0x046D && device.ProductId == 0xC539);
+    if (proWireless is not null)
+    {
+        Assert(proWireless.ModelKey == "logitech-pro-wireless" && proWireless.Product == "PRO WIRELESS",
+            "Windows identifica el receptor C539 por su nombre PnP PRO WIRELESS");
+        if (proWireless.HidInterfaces is { Count: > 0 } hidInterfaces)
+        {
+            Assert(hidInterfaces.Any(item => item.UsagePage == 0xFF00 && item.Usage == 0x0001 &&
+                item.InputReportBytes == 7 && item.OutputReportBytes == 7),
+                "Windows lee el descriptor de la colección Logitech de 7 bytes");
+            Assert(hidInterfaces.Any(item => item.UsagePage == 0xFF00 && item.Usage == 0x0002 &&
+                item.InputReportBytes == 20 && item.OutputReportBytes == 20),
+                "Windows lee el descriptor de la colección Logitech de 20 bytes");
+        }
+    }
+    Assert(devices.Where(device => device.VendorId == 0x046D && device.ProductId == 0xC547)
+        .All(device => device.ModelKey != "logitech-pro-x-superlight"), "el receptor C547 no se atribuye a un ratón sin identificar");
     Console.WriteLine($"Audio Windows: {endpoints.Count} endpoint(s) · Yeti={endpoints.Any(item => item.Name.Contains("Yeti Classic", StringComparison.OrdinalIgnoreCase))} · ASTRO={endpoints.Any(item => item.Name.Contains("Astro A50", StringComparison.OrdinalIgnoreCase))}");
     Console.WriteLine("Dispositivos físicos: " + string.Join(" | ", devices.Select(item => $"{item.Product} [{item.Kind}] aux={item.IsAuxiliary} audio={item.AudioEndpoints?.Count ?? 0}")));
+    if (proWireless is not null)
+        Console.WriteLine("Interfaces PRO WIRELESS: " + string.Join(" | ", (proWireless.HidInterfaces ?? [])
+            .Select(item => $"{item.UsagePage:X4}/{item.Usage:X4} IN={item.InputReportBytes} OUT={item.OutputReportBytes} FEATURE={item.FeatureReportBytes}")));
 }
 
 static void CheckMacroBindingLabels()
