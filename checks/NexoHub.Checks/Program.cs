@@ -133,8 +133,10 @@ static void CheckLogitechHidppMessages()
     const byte softwareId = 0x0A;
     const byte pingData = 0xA5;
     var request = LogitechHidppCapabilityReader.BuildGetFeatureRequest(deviceIndex, 0x2201, softwareId);
+    var reportRateRequest = LogitechHidppCapabilityReader.BuildGetFeatureRequest(deviceIndex, 0x8060, softwareId);
     Assert(request.Length == 20 && request.Take(6).SequenceEqual(new byte[] { 0x11, 1, 0, 0x0A, 0x22, 0x01 }) &&
-        request.Skip(6).All(value => value == 0), "la petición HID++ GetFeature usa el framing largo y el ID en big-endian");
+        request.Skip(6).All(value => value == 0) && reportRateRequest.Take(6).SequenceEqual(new byte[] { 0x11, 1, 0, 0x0A, 0x80, 0x60 }),
+        "la petición HID++ GetFeature usa el framing largo y el ID en big-endian, incluido polling 0x8060");
 
     var featureResponse = new byte[20];
     featureResponse[0] = 0x11;
@@ -143,6 +145,10 @@ static void CheckLogitechHidppMessages()
     featureResponse[4] = 0x07;
     Assert(LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, deviceIndex, softwareId, out var featureIndex) &&
         featureIndex == 0x07, "se acepta el índice devuelto por IRoot.GetFeature");
+    featureResponse[4] = 0;
+    Assert(LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, deviceIndex, softwareId, out var absentIndex) &&
+        absentIndex == 0, "un índice cero válido representa una feature no anunciada");
+    featureResponse[4] = 0x07;
     Assert(!LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse.AsSpan(0, 7), deviceIndex, softwareId, out _) &&
         !LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, 2, softwareId, out _),
         "se rechazan respuestas cortas o de otra ranura");
@@ -182,6 +188,7 @@ static void CheckLogitechHidppMessages()
             softwareId, out _), "se consulta y valida GetDeviceType en la feature 0x0005");
     var completeFeatures = new LogitechHidppSlotStatus(deviceIndex, 0x04, 0x05, true, true, true, true, 3);
     Assert(completeFeatures.HasRequiredFeatures &&
+        (completeFeatures with { AdjustableReportRateFeatureIndex = 0 }).HasRequiredFeatures &&
         !(completeFeatures with { ProtocolMajor = 0x8F }).HasRequiredFeatures &&
         !(completeFeatures with { HidppDeviceType = null }).HasRequiredFeatures,
         "el filtro requiere HID++ 2.0, las cuatro capacidades y una respuesta de tipo");

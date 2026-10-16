@@ -9,6 +9,8 @@ public sealed class LogitechHidppCapabilityReader
     private const byte LongReportId = 0x11;
     private const byte RootFeatureIndex = 0;
     private const byte SoftwareId = 0x0A;
+    public const byte HidppMouseDeviceType = 0x03;
+    private const ushort AdjustableReportRateFeatureId = 0x8060;
     private const int LongReportLength = 20;
     private const int ResponseTimeoutMs = 350;
     private const uint GenericRead = 0x80000000;
@@ -64,9 +66,15 @@ public sealed class LogitechHidppCapabilityReader
             var hidppDeviceType = features[0x0005]
                 ? await ReadDeviceTypeAsync(stream, index, nameAndTypeIndex.Value, cancellationToken)
                 : null;
+            var reportRateFeatureIndex = hidppDeviceType == HidppMouseDeviceType
+                ? await ReadFeatureIndexAsync(stream, index, AdjustableReportRateFeatureId, cancellationToken)
+                : null;
             slots.Add(new(index, protocol.Value.Major, protocol.Value.Minor,
                 features[0x0003], features[0x0005],
-                features[0x2201] || features[0x2202], features[0x8100], hidppDeviceType));
+                features[0x2201] || features[0x2202], features[0x8100], hidppDeviceType)
+            {
+                AdjustableReportRateFeatureIndex = reportRateFeatureIndex
+            });
         }
 
         return slots;
@@ -208,6 +216,8 @@ public sealed record LogitechHidppSlotStatus(
     bool HasOnboardProfiles,
     byte? HidppDeviceType)
 {
+    public byte? AdjustableReportRateFeatureIndex { get; init; }
+
     public bool HasRequiredFeatures => LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(ProtocolMajor) && HidppDeviceType is not null && HasDeviceInformation &&
         HasDeviceNameAndType && HasAdjustableDpi && HasOnboardProfiles;
 }

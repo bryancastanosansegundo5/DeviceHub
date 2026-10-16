@@ -20,19 +20,19 @@ La huella acumulada es `(líneas añadidas + eliminadas frente a d621167) / lín
 | `MainWindow.xaml.cs` | **0,8 %** | Conecta el botón de lectura HID++ con el ViewModel. |
 | `Services/DeviceLocalProfileLibrary.cs` | **26,8 %** | Valida cuatro etapas de 100 a 25.600 DPI y polling de 125/250/500/1000 Hz para perfiles Logitech. |
 | `Services/HidDeviceEnumerator.cs` | **22,1 %** | Reconoce C539 por nombre PnP y lee descriptor HID sin enviar reportes. |
-| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Lee manualmente versión, features consultadas por OMM y tipo HID++ bruto en ranuras 1–6. |
+| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Lee manualmente versión, features OMM, tipo HID++ bruto y presencia de 0x8060 en ranuras de ratón 1–6. |
 | `Models/HardwareDevice.cs` | **31,0 %** | Añade metadatos de las colecciones HID al inventario tipado del dispositivo. |
 | `ViewModels/DeviceCardViewModel.cs` | **14,5 %** | Adapta la ficha al ratón exacto y actualiza el estado HID++ observado. |
-| `ViewModels/MainViewModel.cs` | **38,6 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas y evita solaparla con el refresco. |
-| `checks/NexoHub.Checks/Program.cs` | **94,7 %** | Añade checks del framing HID++, filtro de versión, respuesta de tipo, eco ping y descripción del descriptor. |
-| `docs/device-inventory-analysis.md` | **134,5 %** | Registra los límites REA de G HUB, el filtro OMM, los wrappers DPI/perfiles y el byte de tipo. |
+| `ViewModels/MainViewModel.cs` | **41,3 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas, evita solaparla con el refresco y presenta el estado de 0x8060. |
+| `checks/NexoHub.Checks/Program.cs` | **100,9 %** | Comprueba el framing HID++, filtro de versión, respuesta de tipo, eco ping, respuesta índice cero y presencia de 0x8060. |
+| `docs/device-inventory-analysis.md` | **141,4 %** | Registra los límites REA de G HUB, el filtro OMM, wrappers DPI/perfiles/polling y el alcance de 0x8060. |
 | `README.md` | **3,5 %** | Corrige el modelo Logitech mostrado y aclara que DPI/polling todavía se guardan solo en Nexo. |
 | `dist/LEEME.md` | **18,2 %** | Corrige el nombre del ratón y el estado local de la función en las notas del paquete. |
 | `AVANCES/APLICACION.md` | **100 %** | Mantiene este registro de cambios, evidencias y trabajo pendiente. |
 
 ## Estado funcional actual
 
-La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling y guardar esos valores en un JSON del PC. Se añadió una consulta HID++ manual para leer versión, features relevantes para OMM y el byte en bruto de `GetDeviceType`. Una consulta de solo lectura al C539 respondió en la ranura 1 con HID++ 4.2 y las features `0x0003`, `0x0005`, `0x8100` y al menos una entre `0x2201`/`0x2202`; `GetDeviceType` devolvió `0x03`. La especificación publicada enumera Mouse como tipo HID++ `3`; OMM usa internamente `BaseDeviceType.MOUSE=2` y no se ha probado que la DLL los traduzca de esa manera. No se confirma aceptación OMM. No se aplican DPI/polling ni se escriben perfiles de memoria integrada.
+La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling y guardar esos valores en un JSON del PC. La consulta HID++ manual ahora también pregunta si la feature pública `0x8060` está anunciada cuando el tipo bruto es mouse `0x03`; no lee la tasa configurada. Una consulta de solo lectura anterior al C539 respondió en la ranura 1 con HID++ 4.2 y las features `0x0003`, `0x0005`, `0x8100` y al menos una entre `0x2201`/`0x2202`; `GetDeviceType` devolvió `0x03`. La especificación publicada enumera Mouse como tipo HID++ `3`; OMM usa internamente `BaseDeviceType.MOUSE=2` y no se ha probado que la DLL los traduzca de esa manera. No se confirma aceptación OMM. No se aplican DPI/polling ni se escriben perfiles de memoria integrada.
 
 **La etapa Logitech no está terminada.** La consulta HID++ real confirma transporte y features en la ranura 1, pero no el filtro completo de compatibilidad OMM. No se han probado escrituras, lectura de vuelta de ajustes ni persistencia tras reconexión.
 
@@ -106,3 +106,11 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 ## Fuentes oficiales
 
 [HID++ 2.0 de Logitech](https://github.com/Logitech/cpg-docs/blob/master/hidpp20/README.rst), [especificaciones del G PRO Wireless](https://support.logi.com/hc/en-sg/articles/360023463233-Logitech-G-PRO-Wireless-Gaming-Mouse-Technical-Specifications), [producto G PRO Wireless](https://www.logitechg.com/en-gb/products/gaming-mice/pro-wireless-mouse.html), [notas de G HUB](https://support.logi.com/hc/en-gb/articles/360053659674-Logitech-G-HUB), [criterio oficial de compatibilidad OMM](https://support.logi.com/hc/en-hk/articles/360057433714-How-to-enable-On-Board-Memory-Mode-to-use-Onboard-Memory-Manager).
+
+## Continuación REA · 16 de octubre de 2026
+
+- REA amplió el seguimiento CIL de OMM: `Feature8061.GetDeviceCapabilities` y `GetActualReportRateList` llaman a funciones nativas `feature_8061.*` y convierten el resultado a `ReportRates` (`ev_ae82221e0fc1fa09c37e9aba187f50b68a76054754640e6db7689b491bd7d085`). La frontera nativa sigue sin revelar framing, bytes ni un mapeo probado entre la clase interna `Feature8061` y el ID HID++.
+- Logitech cataloga `0x8060` como Adjustable Report Rate y define el reporte largo de 20 bytes. Nexo hace `GetFeature(0x8060)` solo durante la acción manual y solo para el tipo `0x03`; muestra índice, no anunciada, o sin respuesta/error. El índice cero no es una consulta fallida. No lee ni cambia el polling.
+- Archivos tocados en esta continuación: `Services/LogitechHidppCapabilityReader.cs` (**100 %** de huella acumulada), `ViewModels/MainViewModel.cs` (**41,3 %**), `checks/NexoHub.Checks/Program.cs` (**100,9 %**), `docs/device-inventory-analysis.md` (**141,4 %**) y este archivo (**100 %**, creado desde la base). El porcentaje usa la fórmula de la sección «Archivos tocados»; no es cobertura funcional.
+- Validación: `dotnet build .\NexoHub.csproj -c Release /m:1 /p:UseSharedCompilation=false` terminó con 0 errores y 0 advertencias; los 7 grupos de `NexoHub.Checks` pasaron; `git diff --check` no encontró errores.
+- No se hizo una consulta nueva al hardware ni una escritura HID en esta continuación. La lista de tareas pendientes permanece abierta; en particular, faltan los cuerpos nativos de OMM y el recorrido completo de configuración DPI de G HUB.
