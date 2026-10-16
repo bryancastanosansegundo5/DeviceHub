@@ -182,8 +182,9 @@ static void CheckLogitechHidppMessages()
             softwareId, out _), "se consulta y valida GetDeviceType en la feature 0x0005");
     var completeFeatures = new LogitechHidppSlotStatus(deviceIndex, 0x04, 0x05, true, true, true, true, 3);
     Assert(completeFeatures.HasRequiredFeatures &&
-        !(completeFeatures with { ProtocolMajor = 0x8F }).HasRequiredFeatures,
-        "el filtro de features requiere HID++ 2.0 y las cuatro capacidades observadas");
+        !(completeFeatures with { ProtocolMajor = 0x8F }).HasRequiredFeatures &&
+        !(completeFeatures with { HidppDeviceType = null }).HasRequiredFeatures,
+        "el filtro requiere HID++ 2.0, las cuatro capacidades y una respuesta de tipo");
 }
 
 static void CheckLiveInventory()

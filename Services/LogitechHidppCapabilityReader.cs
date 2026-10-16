@@ -208,6 +208,6 @@ public sealed record LogitechHidppSlotStatus(
     bool HasOnboardProfiles,
     byte? HidppDeviceType)
 {
-    public bool HasRequiredFeatures => LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(ProtocolMajor) && HasDeviceInformation &&
+    public bool HasRequiredFeatures => LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(ProtocolMajor) && HidppDeviceType is not null && HasDeviceInformation &&
         HasDeviceNameAndType && HasAdjustableDpi && HasOnboardProfiles;
 }
