@@ -12,10 +12,11 @@ try
     CheckProfileRoundTrip(testRoot);
     CheckMacroRoundTrip(testRoot);
     CheckDeviceProfileRoundTrip(testRoot);
+    CheckLogitechHidppMessages();
     CheckAdapterSelection();
     CheckMacroBindingLabels();
     CheckLiveInventory();
-    Console.WriteLine("NexoHub self-check: 6 grupos correctos.");
+    Console.WriteLine("NexoHub self-check: 7 grupos correctos.");
 }
 finally
 {
@@ -120,8 +121,69 @@ static void CheckAdapterSelection()
         proWireless.DisplayName == "PRO WIRELESS" && xbox.Brand == "XBOX" &&
         yeti.Brand == "BLUE" && keyboard.Brand == "AJAZZ",
         "los modelos piloto seleccionan su adaptador correspondiente");
-    Assert(proWireless.Capabilities.Single(item => item.Name == "Descriptor HID").Detail.Contains("FF00/uso 0002", StringComparison.Ordinal),
+    var descriptorDetail = proWireless.Capabilities.Single(item => item.Name == "Descriptor HID").Detail;
+    Assert(descriptorDetail.Contains("FF00/0002", StringComparison.Ordinal) &&
+        descriptorDetail.Contains("no confirman funciones HID++", StringComparison.Ordinal),
         "la ficha Logitech incluye datos del descriptor sin afirmar compatibilidad HID++");
+}
+
+static void CheckLogitechHidppMessages()
+{
+    const byte deviceIndex = 1;
+    const byte softwareId = 0x0A;
+    const byte pingData = 0xA5;
+    var request = LogitechHidppCapabilityReader.BuildGetFeatureRequest(deviceIndex, 0x2201, softwareId);
+    Assert(request.Length == 20 && request.Take(6).SequenceEqual(new byte[] { 0x11, 1, 0, 0x0A, 0x22, 0x01 }) &&
+        request.Skip(6).All(value => value == 0), "la petición HID++ GetFeature usa el framing largo y el ID en big-endian");
+
+    var featureResponse = new byte[20];
+    featureResponse[0] = 0x11;
+    featureResponse[1] = deviceIndex;
+    featureResponse[3] = softwareId;
+    featureResponse[4] = 0x07;
+    Assert(LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, deviceIndex, softwareId, out var featureIndex) &&
+        featureIndex == 0x07, "se acepta el índice devuelto por IRoot.GetFeature");
+    Assert(!LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse.AsSpan(0, 7), deviceIndex, softwareId, out _) &&
+        !LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, 2, softwareId, out _),
+        "se rechazan respuestas cortas o de otra ranura");
+    featureResponse[3] = 0x1A;
+    Assert(!LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, deviceIndex, softwareId, out _),
+        "se rechaza una respuesta de función distinta");
+
+    var versionRequest = LogitechHidppCapabilityReader.BuildGetProtocolVersionRequest(deviceIndex, softwareId, pingData);
+    var versionResponse = new byte[20];
+    versionResponse[0] = 0x11;
+    versionResponse[1] = deviceIndex;
+    versionResponse[3] = 0x1A;
+    versionResponse[4] = 0x04;
+    versionResponse[5] = 0x05;
+    versionResponse[6] = pingData;
+    Assert(versionRequest[3] == 0x1A && versionRequest[6] == pingData &&
+        LogitechHidppCapabilityReader.TryReadProtocolVersionResponse(versionResponse, deviceIndex, softwareId,
+            pingData, out var major, out var minor) && major == 0x04 && minor == 0x05,
+        "IRoot.GetProtocolVersion devuelve versión y eco del ping");
+    versionResponse[6]++;
+    Assert(!LogitechHidppCapabilityReader.TryReadProtocolVersionResponse(versionResponse, deviceIndex, softwareId,
+        pingData, out _, out _), "se rechaza una respuesta de protocolo con eco incorrecto");
+    Assert(LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(0x02) &&
+        LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(0x04) &&
+        !LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(0x8F),
+        "el gate acepta HID++ 2.0 y rechaza HID++ 1.0");
+    var typeRequest = LogitechHidppCapabilityReader.BuildGetDeviceTypeRequest(deviceIndex, 3, softwareId);
+    var typeResponse = new byte[20];
+    typeResponse[0] = 0x11;
+    typeResponse[1] = deviceIndex;
+    typeResponse[2] = 3;
+    typeResponse[3] = 0x2A;
+    typeResponse[4] = 3;
+    Assert(typeRequest[2] == 3 && typeRequest[3] == 0x2A &&
+        LogitechHidppCapabilityReader.TryReadDeviceTypeResponse(typeResponse, deviceIndex, 3, softwareId, out var type) &&
+        type == 3 && !LogitechHidppCapabilityReader.TryReadDeviceTypeResponse(typeResponse, deviceIndex, 4,
+            softwareId, out _), "se consulta y valida GetDeviceType en la feature 0x0005");
+    var completeFeatures = new LogitechHidppSlotStatus(deviceIndex, 0x04, 0x05, true, true, true, true, 3);
+    Assert(completeFeatures.HasRequiredFeatures &&
+        !(completeFeatures with { ProtocolMajor = 0x8F }).HasRequiredFeatures,
+        "el filtro de features requiere HID++ 2.0 y las cuatro capacidades observadas");
 }
 
 static void CheckLiveInventory()

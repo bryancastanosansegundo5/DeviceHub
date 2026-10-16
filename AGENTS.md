@@ -20,6 +20,7 @@ Prioridades del usuario:
 - Los niveles de entrada/salida de Yeti y ASTRO se leen y aplican a endpoints de Windows por Core Audio; no se confunden con cambios al hardware.
 - La ficha Xbox consulta XInput 12 veces por segundo mientras está seleccionada y enseña botones, LT/RT y sticks. Los umbrales de gatillo 0–10 son un perfil Nexo local.
 - DPI/polling Logitech, iluminación AJAZZ, EQ ASTRO y demás valores de las fichas se guardan como JSON en `%LOCALAPPDATA%\NexoHub\DeviceProfiles`. La validación impide guardar valores fuera de los rangos admitidos.
+- La ficha del PRO WIRELESS C539 permite consultar manualmente la versión HID++, las features usadas por el filtro estático de OMM y el byte bruto de tipo HID++; la consulta es informativa, no periódica, no confirma por sí sola compatibilidad OMM y no modifica ajustes.
 - La biblioteca ASTRO importa, muestra y exporta copias de `.agp` y `.astroeq`; todavía no aplica ajustes al auricular.
 - Las macros graban teclas, clics y rueda. Reproducen por software y pueden asignarse a los botones laterales 4/5 mientras Nexo está abierto. La reproducción empieza desactivada y las secuencias no se guardan en el ratón.
 - No se escriben informes HID, firmware ni perfiles a la memoria de los dispositivos. La única escritura de ajustes del equipo es el cambio explícito de volumen/nivel a Windows Core Audio.

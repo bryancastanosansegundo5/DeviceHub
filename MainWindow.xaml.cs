@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         if (selected?.Device.XInputSlot is int slot) selected.XboxInput.Refresh(slot);
     }
     private async void RefreshDevices(object sender, RoutedEventArgs e) => await _viewModel.RefreshAsync();
+    private async void ReadLogitechCapabilities(object sender, RoutedEventArgs e) => await _viewModel.ReadLogitechCapabilitiesAsync();
     private void ToggleAuxiliary(object sender, RoutedEventArgs e) => _viewModel.ShowAuxiliary = !_viewModel.ShowAuxiliary;
 
     private void ApplyAudioLevel(object sender, RoutedEventArgs e)

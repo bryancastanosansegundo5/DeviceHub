@@ -15,6 +15,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly ProfileLibrary _profiles = new();
     private readonly DeviceLocalProfileLibrary _deviceProfiles = new();
     private readonly WindowsAudioEndpointService _audioEndpoints = new();
+    private readonly LogitechHidppCapabilityReader _logitechHidpp = new();
+    private readonly Dictionary<string, CapabilityInfo> _logitechProbeResults = [];
     private List<DeviceCardViewModel> _allDevices = [];
     private DeviceCardViewModel? _selectedDevice;
     private string _scanStatus = "Buscando dispositivos…";
@@ -41,11 +43,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedDevice));
             OnPropertyChanged(nameof(HasNoDevices));
+            OnPropertyChanged(nameof(CanProbeLogitech));
         }
     }
 
     public bool HasSelectedDevice => SelectedDevice is not null;
     public bool HasNoDevices => Devices.Count == 0;
+    public bool CanProbeLogitech => SelectedDevice?.IsLogitechProWireless == true && !IsScanning && !IsProbingLogitech;
     public bool HasAuxiliaryDevices => AuxiliaryCount > 0;
     public int AuxiliaryCount => _allDevices.Count(device => device.Device.IsAuxiliary);
     public string AuxiliaryButtonLabel => ShowAuxiliary ? $"Ocultar otros ({AuxiliaryCount})" : $"Mostrar otros ({AuxiliaryCount})";
@@ -93,7 +97,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsScanning
     {
         get => _isScanning;
-        private set { _isScanning = value; OnPropertyChanged(); }
+        private set
+        {
+            _isScanning = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanProbeLogitech));
+        }
+    }
+
+    private bool _isProbingLogitech;
+    public bool IsProbingLogitech
+    {
+        get => _isProbingLogitech;
+        private set
+        {
+            _isProbingLogitech = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanProbeLogitech));
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -113,14 +134,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task RefreshAsync()
     {
-        if (IsScanning) return;
+        if (IsScanning || IsProbingLogitech) return;
         IsScanning = true;
         var priorId = SelectedDevice?.Device.Id;
         try
         {
             var found = await Task.Run(_discovery.Scan);
-            _allDevices = found.Select(device => new DeviceCardViewModel(device, _adapters.Describe(device),
-                _deviceProfiles.Load(device.ModelKey.Length > 0 ? device.ModelKey : device.Id))).ToList();
+            _allDevices = found.Select(device =>
+            {
+                var card = new DeviceCardViewModel(device, _adapters.Describe(device),
+                    _deviceProfiles.Load(device.ModelKey.Length > 0 ? device.ModelKey : device.Id));
+                if (_logitechProbeResults.TryGetValue(device.Id, out var result)) card.SetLogitechHidppStatus(result);
+                return card;
+            }).ToList();
             RefreshVisibleDevices(priorId);
             ScanStatus = _allDevices.Count == 0
                 ? "No hay dispositivos HID o mandos Xbox conectados."
@@ -138,6 +164,45 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             IsScanning = false;
         }
+    }
+
+    public async Task ReadLogitechCapabilitiesAsync()
+    {
+        var card = SelectedDevice;
+        if (card?.IsLogitechProWireless != true || !CanProbeLogitech) return;
+
+        IsProbingLogitech = true;
+        SetLogitechProbeResult(card.Device.Id, new("HID++ / OMM", "Consultando", "Lectura manual HID++; no escribe DPI ni perfiles."));
+        try
+        {
+            var slots = await _logitechHidpp.ReadOmmGateAsync(card.Device);
+            var detail = slots.Count == 0
+                ? "No se completó la verificación en las ranuras 1–6; esto no demuestra incompatibilidad. OMM también filtra el tipo de dispositivo y no se ha confirmado compatibilidad completa."
+                : string.Join("\n", slots.Select(slot =>
+                    $"Ranura {slot.DeviceIndex} · HID++ {slot.ProtocolMajor}.{slot.ProtocolMinor} · 0x0003 {(slot.HasDeviceInformation ? "sí" : "no")} · 0x0005 {(slot.HasDeviceNameAndType ? "sí" : "no")} · tipo HID++ {(slot.HidppDeviceType is byte type ? $"0x{type:X2}" : "sin respuesta")} · DPI {(slot.HasAdjustableDpi ? "sí" : "no")} · perfiles 0x8100 {(slot.HasOnboardProfiles ? "sí" : "no")}")) +
+                    "\nEl tipo es el byte HID++ sin traducir; no demuestra compatibilidad completa con OMM.";
+            var result = new CapabilityInfo("HID++ / OMM", slots.Any(slot => slot.HasRequiredFeatures)
+                ? "Features observadas" : slots.Count == 0 ? "Sin verificación" : "Features parciales", detail);
+            SetLogitechProbeResult(card.Device.Id, result);
+            ConfigurationStatus = $"{card.DisplayName}: consulta HID++ finalizada; solo se leyeron versión, features y tipo.";
+        }
+        catch (Exception exception)
+        {
+            var result = new CapabilityInfo("HID++ / OMM", "Error de lectura", exception.Message);
+            SetLogitechProbeResult(card.Device.Id, result);
+            ConfigurationStatus = $"No se pudo consultar HID++: {exception.Message}";
+        }
+        finally
+        {
+            IsProbingLogitech = false;
+        }
+    }
+
+    private void SetLogitechProbeResult(string deviceId, CapabilityInfo result)
+    {
+        _logitechProbeResults[deviceId] = result;
+        foreach (var device in _allDevices.Where(item => item.Device.Id == deviceId))
+            device.SetLogitechHidppStatus(result);
     }
 
     public void ApplyAudioLevel(AudioEndpointViewModel endpoint)

@@ -53,6 +53,7 @@ public sealed class DeviceCardViewModel
     public string VisualKind => Device.Kind.ToString();
     public bool IsMouse => Device.Kind == DeviceKind.Mouse;
     public bool IsLogitechMouse => Device.ModelKey is "logitech-pro-wireless" or "logitech-pro-x-superlight";
+    public bool IsLogitechProWireless => Device.ModelKey == "logitech-pro-wireless" && Device.VendorId == 0x046D && Device.ProductId == 0xC539;
     public int LogitechDpiMaximum => 25600;
     public string LogitechDpiRange => $"Cuatro etapas · 100–{LogitechDpiMaximum:N0} DPI";
     public bool IsMicrophone => Device.Kind == DeviceKind.Microphone;
@@ -64,6 +65,13 @@ public sealed class DeviceCardViewModel
     public bool IsAstroA50 => Device.ModelKey == "astro-a50";
     public bool HasLocalEditor => IsLogitechMouse || IsAjazzKeyboard || IsXboxElite || IsAstroA50;
     public bool HasAudioEndpoints => AudioEndpoints.Count > 0;
+
+    public void SetLogitechHidppStatus(CapabilityInfo status)
+    {
+        var index = Capabilities.ToList().FindIndex(item => item.Name == "HID++ / OMM");
+        if (index >= 0) Capabilities[index] = status;
+    }
+
     public string SettingsTitle => Device.Kind switch
     {
         DeviceKind.Mouse => "Sensibilidad y memoria integrada",

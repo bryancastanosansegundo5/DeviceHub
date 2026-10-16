@@ -52,7 +52,7 @@ public sealed class DeviceAdapterRegistry
                     new("DPI", "Perfil local", "Los valores se guardan en Nexo; todavía no se envían al ratón."),
                     new("Tasa de respuesta", "Perfil local", "El valor se guarda en Nexo; todavía no se envía al ratón."),
                     DescribeHidInterfaces(device),
-                    new("HID++ / OMM", "Sin consultar", "La consulta manual comprobará la versión y las features exigidas por el filtro de OMM. Solo lectura; no confirma el formato ni escribe perfiles."),
+                    new("HID++ / OMM", "Sin consultar", "La consulta manual lee la versión y los IDs de feature que filtra OMM. OMM también comprueba el tipo de dispositivo; esta lectura no confirma compatibilidad completa ni escribe perfiles."),
                     new("Memoria integrada", "Sin validar", "La persistencia a bordo requiere lectura de vuelta y reconexión probadas.")
                 ]);
         }

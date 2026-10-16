@@ -426,6 +426,10 @@
                                                                 </StackPanel>
                                                             </Border>
                                                         </Grid>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechProWireless, Converter={StaticResource BoolToVisibility}}">
+                                                            <Button Content="Consultar HID++" Click="ReadLogitechCapabilities" IsEnabled="{Binding DataContext.CanProbeLogitech, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource QuietButton}" Padding="10,7" />
+                                                            <TextBlock Text="Solo lectura · no modifica ajustes" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
+                                                        </StackPanel>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -575,7 +579,7 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <TextBlock Text="Funciones verificadas para este modelo" FontSize="15" FontWeight="Bold" Margin="2,0,0,9" />
+                                    <TextBlock Text="Funciones y estado de verificación" FontSize="15" FontWeight="Bold" Margin="2,0,0,9" />
                                     <ItemsControl ItemsSource="{Binding SelectedDevice.Capabilities}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>

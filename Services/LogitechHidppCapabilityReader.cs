@@ -43,20 +43,30 @@ public sealed class LogitechHidppCapabilityReader
             if (nameAndTypeIndex is null or 0) continue;
 
             var protocol = await ReadProtocolVersionAsync(stream, index, cancellationToken);
-            if (protocol is null || protocol.Value.Major < 2) continue;
+            if (protocol is null || !IsHidpp20ProtocolMajor(protocol.Value.Major)) continue;
 
             var features = new Dictionary<ushort, bool>();
+            var queryFailed = false;
             foreach (var feature in OmmGateFeatures)
             {
                 var featureIndex = feature == 0x0005
                     ? nameAndTypeIndex
                     : await ReadFeatureIndexAsync(stream, index, feature, cancellationToken);
+                if (featureIndex is null)
+                {
+                    queryFailed = true;
+                    break;
+                }
                 features[feature] = featureIndex is > 0;
             }
+            if (queryFailed) continue;
 
+            var hidppDeviceType = features[0x0005]
+                ? await ReadDeviceTypeAsync(stream, index, nameAndTypeIndex.Value, cancellationToken)
+                : null;
             slots.Add(new(index, protocol.Value.Major, protocol.Value.Minor,
                 features[0x0003], features[0x0005],
-                features[0x2201] || features[0x2202], features[0x8100]));
+                features[0x2201] || features[0x2202], features[0x8100], hidppDeviceType));
         }
 
         return slots;
@@ -78,9 +88,59 @@ public sealed class LogitechHidppCapabilityReader
     public static bool TryReadFeatureIndex(ReadOnlySpan<byte> response, byte deviceIndex, byte softwareId, out byte featureIndex)
     {
         featureIndex = 0;
-        if (response.Length < 7 || response[0] != LongReportId || response[1] != deviceIndex ||
+        if (response.Length != LongReportLength || response[0] != LongReportId || response[1] != deviceIndex ||
             response[2] != RootFeatureIndex || response[3] != softwareId) return false;
         featureIndex = response[4];
+        return true;
+    }
+
+    public static byte[] BuildGetProtocolVersionRequest(byte deviceIndex, byte softwareId, byte pingData)
+    {
+        if (softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException(nameof(softwareId));
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = RootFeatureIndex;
+        report[3] = (byte)(0x10 | softwareId);
+        report[6] = pingData;
+        return report;
+    }
+
+    public static bool TryReadProtocolVersionResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte softwareId, byte pingData,
+        out byte major, out byte minor)
+    {
+        major = minor = 0;
+        if (softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex ||
+            response[2] != RootFeatureIndex || response[3] != (byte)(0x10 | softwareId) ||
+            response[6] != pingData) return false;
+        major = response[4];
+        minor = response[5];
+        return true;
+    }
+
+    public static bool IsHidpp20ProtocolMajor(byte major) => major is 0x02 or 0x04;
+
+    public static byte[] BuildGetDeviceTypeRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x20 | softwareId);
+        return report;
+    }
+
+    public static bool TryReadDeviceTypeResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId, out byte deviceType)
+    {
+        deviceType = 0;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != (byte)(0x20 | softwareId)) return false;
+        deviceType = response[4];
         return true;
     }
 
@@ -89,7 +149,7 @@ public sealed class LogitechHidppCapabilityReader
     {
         var request = BuildGetFeatureRequest(deviceIndex, featureId, SoftwareId);
         await stream.WriteAsync(request, cancellationToken);
-        var response = await ReadResponseAsync(stream, deviceIndex, SoftwareId, RootFeatureIndex, cancellationToken);
+        var response = await ReadResponseAsync(stream, deviceIndex, RootFeatureIndex, request[3], cancellationToken);
         return response is not null && TryReadFeatureIndex(response, deviceIndex, SoftwareId, out var index)
             ? index : null;
     }
@@ -98,20 +158,25 @@ public sealed class LogitechHidppCapabilityReader
         FileStream stream, byte deviceIndex, CancellationToken cancellationToken)
     {
         const byte pingData = 0xA5;
-        var request = new byte[LongReportLength];
-        request[0] = LongReportId;
-        request[1] = deviceIndex;
-        request[2] = RootFeatureIndex;
-        request[3] = (byte)(0x10 | SoftwareId);
-        request[6] = pingData;
+        var request = BuildGetProtocolVersionRequest(deviceIndex, SoftwareId, pingData);
         await stream.WriteAsync(request, cancellationToken);
-        var response = await ReadResponseAsync(stream, deviceIndex, SoftwareId, request[3], cancellationToken);
-        return response is { Length: LongReportLength } && response[6] == pingData
-            ? (response[4], response[5]) : null;
+        var response = await ReadResponseAsync(stream, deviceIndex, RootFeatureIndex, request[3], cancellationToken);
+        return response is not null && TryReadProtocolVersionResponse(response, deviceIndex, SoftwareId, pingData,
+            out var major, out var minor) ? (major, minor) : null;
+    }
+
+    private static async Task<byte?> ReadDeviceTypeAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, CancellationToken cancellationToken)
+    {
+        var request = BuildGetDeviceTypeRequest(deviceIndex, featureIndex, SoftwareId);
+        await stream.WriteAsync(request, cancellationToken);
+        var response = await ReadResponseAsync(stream, deviceIndex, featureIndex, request[3], cancellationToken);
+        return response is not null && TryReadDeviceTypeResponse(response, deviceIndex, featureIndex, SoftwareId,
+            out var deviceType) ? deviceType : null;
     }
 
     private static async Task<byte[]?> ReadResponseAsync(
-        FileStream stream, byte deviceIndex, byte softwareId, byte functionAndSoftwareId,
+        FileStream stream, byte deviceIndex, byte featureIndex, byte functionAndSoftwareId,
         CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -122,9 +187,9 @@ public sealed class LogitechHidppCapabilityReader
             int count;
             try { count = await stream.ReadAsync(report, timeout.Token); }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return null; }
-            if (count < 7 || report[0] != LongReportId || report[1] != deviceIndex) continue;
-            if (report[2] == 0xFF && count > 5 && (report[4] & 0x0F) == softwareId) return null;
-            if (report[2] == RootFeatureIndex && report[3] == functionAndSoftwareId) return report;
+            if (count != LongReportLength || report[0] != LongReportId || report[1] != deviceIndex) continue;
+            if (report[2] == 0xFF && report[3] == featureIndex && report[4] == functionAndSoftwareId) return null;
+            if (report[2] == featureIndex && report[3] == functionAndSoftwareId) return report;
         }
     }
 
@@ -140,8 +205,9 @@ public sealed record LogitechHidppSlotStatus(
     bool HasDeviceInformation,
     bool HasDeviceNameAndType,
     bool HasAdjustableDpi,
-    bool HasOnboardProfiles)
+    bool HasOnboardProfiles,
+    byte? HidppDeviceType)
 {
-    public bool HasOmmFeaturePrerequisites => ProtocolMajor >= 2 && HasDeviceInformation &&
+    public bool HasRequiredFeatures => LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(ProtocolMajor) && HasDeviceInformation &&
         HasDeviceNameAndType && HasAdjustableDpi && HasOnboardProfiles;
 }
