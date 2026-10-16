@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using NexoHub.Services;
 
 namespace NexoHub.ViewModels;
 
@@ -52,7 +53,7 @@ public sealed class XboxInputViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public void Refresh(int slot)
+    public XboxMacroInputState? Refresh(int slot)
     {
         try
         {
@@ -64,7 +65,7 @@ public sealed class XboxInputViewModel : INotifyPropertyChanged
                 RightTrigger = 0;
                 LeftStickLabel = "X 0% · Y 0%";
                 RightStickLabel = "X 0% · Y 0%";
-                return;
+                return null;
             }
 
             IsConnected = true;
@@ -73,16 +74,20 @@ public sealed class XboxInputViewModel : INotifyPropertyChanged
             RightTrigger = ToPercent(state.Gamepad.RightTrigger);
             LeftStickLabel = DescribeStick(state.Gamepad.LeftThumbX, state.Gamepad.LeftThumbY);
             RightStickLabel = DescribeStick(state.Gamepad.RightThumbX, state.Gamepad.RightThumbY);
+            return new XboxMacroInputState(state.Gamepad.Buttons, state.Gamepad.LeftTrigger, state.Gamepad.RightTrigger,
+                state.Gamepad.LeftThumbX, state.Gamepad.LeftThumbY, state.Gamepad.RightThumbX, state.Gamepad.RightThumbY);
         }
         catch (DllNotFoundException)
         {
             IsConnected = false;
             ButtonsLabel = "XInput no está disponible en esta versión de Windows.";
+            return null;
         }
         catch (EntryPointNotFoundException)
         {
             IsConnected = false;
             ButtonsLabel = "La API XInput de este sistema no ofrece lectura de estado.";
+            return null;
         }
     }
 

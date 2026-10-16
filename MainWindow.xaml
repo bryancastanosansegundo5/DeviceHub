@@ -338,6 +338,9 @@
                                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                                     <TextBlock Text="{Binding Brand}" Foreground="{StaticResource Signal}" FontSize="9" FontWeight="Bold" Margin="0,3,0,0" />
                                                     <TextBlock Text="{Binding HardwareId}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,3,0,0" />
+                                                    <TextBlock Text="{Binding LogitechConnectionStatus}" Foreground="{StaticResource TextMuted}" FontSize="9" Margin="0,3,0,0"
+                                                               Visibility="{Binding IsLogitechHidppCandidate, Converter={StaticResource BoolToVisibility}}"
+                                                               ToolTip="Activo significa que el ratón respondió. Si no responde, puede estar en reposo, apagado o fuera de alcance." />
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>
@@ -429,20 +432,27 @@
                                                             </Border>
                                                         </Grid>
                                                         <TextBlock Text="{Binding SelectedDevice.LogitechDpiRange}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,3,0,10" />
-                                                        <UniformGrid Columns="4">
+                                                        <UniformGrid Columns="5">
                                                             <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage1Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 1">
                                                                 <StackPanel><TextBlock Text="ETAPA 01" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage1Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
-                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage2Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 2">
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage2Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage2, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Seleccionar etapa DPI 2">
                                                                 <StackPanel><TextBlock Text="ETAPA 02" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage2Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
-                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage3Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 3">
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage3Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage3, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Seleccionar etapa DPI 3">
                                                                 <StackPanel><TextBlock Text="ETAPA 03" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage3Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
-                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage4Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Margin="0" AutomationProperties.Name="Seleccionar etapa DPI 4">
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage4Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage4, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Seleccionar etapa DPI 4">
                                                                 <StackPanel><TextBlock Text="ETAPA 04" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage4Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage5Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage5, Converter={StaticResource BoolToVisibility}}" Margin="0" AutomationProperties.Name="Seleccionar etapa DPI 5">
+                                                                <StackPanel><TextBlock Text="ETAPA 05" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage5Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                            </RadioButton>
                                                         </UniformGrid>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                            <Button Content="Añadir etapa" Click="AddLogitechDpiStage" IsEnabled="{Binding SelectedDevice.CanAddLogitechDpiStage}" Style="{StaticResource QuietButton}" Padding="10,6" AutomationProperties.Name="Añadir etapa DPI" />
+                                                            <Button Content="Quitar etapa activa" Click="RemoveLogitechDpiStage" IsEnabled="{Binding SelectedDevice.CanRemoveLogitechDpiStage}" Style="{StaticResource QuietButton}" Padding="10,6" Margin="8,0,0,0" AutomationProperties.Name="Quitar etapa DPI activa" />
+                                                        </StackPanel>
                                                         <Grid Margin="0,14,0,0">
                                                             <TextBlock Text="{Binding SelectedDevice.LogitechDpiStageLabel}" FontSize="9" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -458,6 +468,14 @@
                                                             <TextBlock Text="100 DPI" FontSize="9" Foreground="{StaticResource TextMuted}" />
                                                             <TextBlock Text="25.600 DPI" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right" />
                                                         </Grid>
+                                                        <Grid Margin="0,0,0,8">
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="DPI de G-Shift · local" FontSize="10" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
+                                                            <Slider x:Name="LogitechShiftDpi" Grid.Column="1" Minimum="100" Maximum="25600" SmallChange="50" LargeChange="1000"
+                                                                    Value="{Binding SelectedDevice.LocalProfile.ShiftDpi}" Margin="10,0"
+                                                                    AutomationProperties.Name="DPI del perfil local G-Shift" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=LogitechShiftDpi, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="11" VerticalAlignment="Center" />
+                                                        </Grid>
                                                         <Grid Margin="0,10,0,0">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -471,11 +489,55 @@
                                                                 </StackPanel>
                                                             </Border>
                                                         </Grid>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechProWireless, Converter={StaticResource BoolToVisibility}}">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechDpiWritable, Converter={StaticResource BoolToVisibility}}">
+                                                            <Button Content="Aplicar DPI seleccionado al ratón" Click="ApplyLogitechDpi" IsEnabled="{Binding CanApplyLogitechDpi}" Style="{StaticResource ActionButton}" Padding="11,7" />
+                                                            <TextBlock Text="Cambio del sensor actual · lectura de vuelta · no guarda etapas" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
                                                             <Button Content="Consultar HID++" Click="ReadLogitechCapabilities" IsEnabled="{Binding DataContext.CanProbeLogitech, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource QuietButton}" Padding="10,7" />
                                                             <TextBlock Text="Solo lectura · no modifica ajustes" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
                                                         </StackPanel>
                                                     </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <Border Background="#202E36" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsLogitechProWireless, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <StackPanel>
+                                                            <TextBlock Text="LIGHTSYNC · perfil local" Foreground="#F5C400" FontSize="10" FontWeight="Bold" />
+                                                            <TextBlock Text="Ciclo de espectro" FontSize="15" FontWeight="SemiBold" Margin="0,3,0,0" />
+                                                        </StackPanel>
+                                                        <CheckBox Content="Activado" IsChecked="{Binding SelectedDevice.LocalProfile.MouseLightingEnabled}"
+                                                                  HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="Iluminación LIGHTSYNC local activada" />
+                                                    </Grid>
+                                                    <TextBlock Text="G HUB muestra un ciclo de 8000 ms y brillo al 100 %. Estos valores se guardan en el perfil de Nexo; no se aplican al ratón." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,8" />
+                                                    <Grid IsEnabled="{Binding SelectedDevice.LocalProfile.MouseLightingEnabled}">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Brillo" FontSize="11" VerticalAlignment="Center" />
+                                                        <Slider x:Name="LogitechLightBrightness" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding SelectedDevice.LocalProfile.LightingBrightness}"
+                                                                Margin="10,0" AutomationProperties.Name="Brillo LIGHTSYNC del perfil local" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=LogitechLightBrightness, StringFormat={}{0:N0}%}" FontSize="11" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                    <Grid Margin="0,7,0,0" IsEnabled="{Binding SelectedDevice.LocalProfile.MouseLightingEnabled}">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Duración del ciclo" FontSize="11" VerticalAlignment="Center" />
+                                                        <Slider x:Name="LogitechLightCycleDuration" Grid.Column="1" Minimum="100" Maximum="60000" SmallChange="100" LargeChange="1000"
+                                                                Value="{Binding SelectedDevice.LocalProfile.LightingCycleDurationMs}" Margin="10,0"
+                                                                AutomationProperties.Name="Duración local del ciclo LIGHTSYNC en milisegundos" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=LogitechLightCycleDuration, StringFormat={}{0:N0} ms}" FontSize="11" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#202E36" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsLogitechHidppCandidate, Converter={StaticResource BoolToVisibility}}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Identidad del dispositivo emparejado" Foreground="#F5C400" FontSize="10" FontWeight="Bold" />
+                                                        <TextBlock Text="Lee nombre y tipo mediante HID++ para identificar ratones detrás de un receptor genérico. No cambia ajustes." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,12,0" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Content="Leer identidad HID++" Click="ReadLogitechMouseIdentity" IsEnabled="{Binding CanIdentifyLogitech}" Style="{StaticResource QuietButton}" Padding="10,7" VerticalAlignment="Center" />
                                                 </Grid>
                                             </Border>
                                             <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
@@ -616,6 +678,24 @@
                                                        Foreground="{StaticResource TextMuted}" FontSize="12" TextWrapping="Wrap"
                                                        Visibility="{Binding SelectedDevice.HasAudioEndpoints, Converter={StaticResource InverseBoolToVisibility}}" />
                                             <TextBlock Text="{Binding ConfigurationStatus}" Foreground="{StaticResource Signal}" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,11,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
+                                                <ComboBox ItemsSource="{Binding SelectedDevice.LocalProfiles}" SelectedItem="{Binding SelectedDevice.LocalProfile, Mode=TwoWay}"
+                                                          DisplayMemberPath="Name" Width="230" AutomationProperties.Name="Perfil local del ratón" />
+                                                <Button Content="Nuevo perfil" Click="AddDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanAddLocalProfile}"
+                                                        Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
+                                                <Button Content="Quitar" Click="RemoveDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanDeleteLocalProfile}"
+                                                        Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="Aplicación" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <TextBox Text="{Binding SelectedDevice.LocalProfile.ApplicationExecutable, UpdateSourceTrigger=PropertyChanged}"
+                                                         Width="260" VerticalContentAlignment="Center" ToolTip="Ruta completa del ejecutable asociado a este perfil local" />
+                                                <Button Content="Elegir .exe" Click="LinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
+                                                <Button Content="Quitar" Click="UnlinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
+                                            </StackPanel>
+                                            <TextBlock Text="El cambio automático solo selecciona un perfil local de Nexo; el primer perfil sin .exe sirve de predeterminado y nada se escribe al ratón."
+                                                       Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0"
+                                                       Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}" />
                                             <StackPanel Orientation="Horizontal" Margin="0,11,0,0" Visibility="{Binding SelectedDevice.HasLocalEditor, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBox Text="{Binding SelectedDevice.LocalProfile.Name, UpdateSourceTrigger=PropertyChanged}" Width="210" VerticalContentAlignment="Center" ToolTip="Nombre del perfil guardado por Nexo" />
                                                 <Button Content="Guardar perfil Nexo" Click="SaveDeviceProfile" Style="{StaticResource ActionButton}" Margin="10,0,0,0" Padding="12,8" />
@@ -702,7 +782,8 @@
                             </ListBox>
                         </DockPanel>
                     </Border>
-                    <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="16" Padding="22">
+                    <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="16" Padding="22"
+                            IsEnabled="{Binding IsEnabled, Converter={StaticResource InverseBoolConverter}}">
                         <Grid>
                           <Grid Visibility="{Binding HasSelectedProfile, Converter={StaticResource BoolToVisibility}}">
                             <Grid.RowDefinitions>
@@ -755,11 +836,11 @@
                 <Grid>
                     <StackPanel>
                         <TextBlock Text="Macros" FontSize="29" FontWeight="Bold" />
-                        <TextBlock Text="Graba teclas, clics y rueda; asigna la secuencia a un botón lateral." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
+                        <TextBlock Text="Graba teclado y ratón; asigna macros a botones del ratón o del mando y a direcciones de los sticks." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
                     </StackPanel>
                     <CheckBox Content="Activar asignaciones por software" HorizontalAlignment="Right" VerticalAlignment="Center"
                               IsChecked="{Binding MacroManager.IsEnabled, Mode=TwoWay}" Foreground="{StaticResource TextMain}"
-                              FontWeight="SemiBold" ToolTip="Mientras esté activo, los botones laterales 4 y 5 ejecutan la macro asignada. Se aplica a cualquier ratón y requiere que Nexo esté abierto." />
+                              FontWeight="SemiBold" ToolTip="Nexo debe seguir abierto. Los botones de ratón asignados se consumen; las macros del mando se disparan por XInput y la entrada física original sigue llegando al juego." />
                 </Grid>
                 <Grid Grid.Row="2" DataContext="{Binding MacroManager}">
                     <Grid.ColumnDefinitions>
@@ -810,36 +891,108 @@
                             </StackPanel>
                             <TextBlock Grid.Row="3" Text="Inicia la grabación, cambia a la aplicación destino y realiza la secuencia. Vuelve a Nexo para detenerla y guardarla."
                                        Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="2,0,0,0" />
-                            <ListBox Grid.Row="4" ItemsSource="{Binding SelectedMacro.Steps}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="4,5">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="60" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="90" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding Index}" Foreground="{StaticResource TextMuted}" FontFamily="Segoe UI Mono" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="2" Text="{Binding DelayLabel}" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <Grid Grid.Row="6">
-                                <StackPanel>
-                                    <TextBlock Text="Botón lateral asignado" Foreground="{StaticResource TextMuted}" FontSize="11" />
-                                    <ComboBox ItemsSource="{Binding Bindings}" SelectedItem="{Binding SelectedMacro.BindingOption, Mode=TwoWay}"
-                                              DisplayMemberPath="Label" Width="250" HorizontalAlignment="Left" Margin="0,6,0,0" />
+                            <DockPanel Grid.Row="4" LastChildFill="True">
+                              <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                  <TextBlock Text="Tecla" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                  <ComboBox ItemsSource="{Binding KeyOptions}" SelectedItem="{Binding SelectedKey, Mode=TwoWay}" Width="100" Margin="0,0,6,0" />
+                                  <Button Content="Añadir tecla" Click="AddMacroKeyAction" Style="{StaticResource QuietButton}" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding AssignmentStatus}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                           Foreground="{StaticResource Calibration}" TextWrapping="Wrap" MaxWidth="340" TextAlignment="Right" />
-                            </Grid>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                  <ComboBox ItemsSource="{Binding SystemCommands}" SelectedItem="{Binding SelectedSystemCommandOption, Mode=TwoWay}"
+                                            DisplayMemberPath="Label" Width="190" Margin="0,0,6,0" />
+                                  <Button Content="Añadir sistema" Click="AddMacroSystemAction" Style="{StaticResource QuietButton}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0"
+                                            Visibility="{Binding SelectedMacro.IsSequence, Converter={StaticResource BoolToVisibility}}">
+                                  <TextBlock Text="Fase" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                  <ComboBox ItemsSource="{Binding SequenceSections}" SelectedItem="{Binding SelectedSequenceSectionOption, Mode=TwoWay}"
+                                            DisplayMemberPath="Label" Width="150" ToolTip="Edita las acciones de pulsar, mantener o soltar." />
+                                </StackPanel>
+                              </WrapPanel>
+                              <ListBox ItemsSource="{Binding SelectedMacroSteps}">
+                                <ListBox.ItemTemplate>
+                                  <DataTemplate>
+                                    <Grid Margin="4,5">
+                                      <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="68" />
+                                      </Grid.ColumnDefinitions>
+                                      <TextBlock Text="{Binding Index}" Foreground="{StaticResource TextMuted}" FontFamily="Segoe UI Mono" />
+                                      <TextBlock Grid.Column="1" Text="{Binding Description}" FontWeight="SemiBold" />
+                                      <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBox Text="{Binding DelayMs, UpdateSourceTrigger=PropertyChanged}" Width="48" Padding="4,2"
+                                                 HorizontalContentAlignment="Right" ToolTip="Pausa antes de esta acción, en milisegundos." />
+                                        <TextBlock Text="ms" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                                      </StackPanel>
+                                      <Button Grid.Column="3" Content="↑" Tag="{Binding}" Click="MoveMacroStepUp" Style="{StaticResource QuietButton}"
+                                              FontSize="12" Padding="5,3" ToolTip="Mover arriba" />
+                                      <Button Grid.Column="4" Content="↓" Tag="{Binding}" Click="MoveMacroStepDown" Style="{StaticResource QuietButton}"
+                                              FontSize="12" Padding="5,3" ToolTip="Mover abajo" />
+                                      <Button Grid.Column="5" Content="Eliminar" Tag="{Binding}" Click="DeleteMacroStep" Style="{StaticResource QuietButton}"
+                                              FontSize="11" Padding="6,3" />
+                                    </Grid>
+                                  </DataTemplate>
+                                </ListBox.ItemTemplate>
+                              </ListBox>
+                            </DockPanel>
+                          <Grid Grid.Row="6">
+                            <Grid.RowDefinitions>
+                              <RowDefinition Height="Auto" />
+                              <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="{Binding AssignmentStatus}" HorizontalAlignment="Right" Foreground="{StaticResource Calibration}"
+                                       TextWrapping="Wrap" MaxWidth="560" TextAlignment="Right" Margin="0,0,0,8" />
+                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                              <StackPanel Width="210" Margin="0,0,12,0">
+                                <TextBlock Text="Botón asignado" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                <ComboBox ItemsSource="{Binding Bindings}" SelectedItem="{Binding SelectedMacro.BindingOption, Mode=TwoWay}"
+                                          DisplayMemberPath="Label" Margin="0,6,0,0" />
+                              </StackPanel>
+                              <StackPanel Width="210" Margin="0,0,12,0">
+                                <TextBlock Text="Botón en la capa G-Shift" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                <ComboBox ItemsSource="{Binding Bindings}" SelectedItem="{Binding SelectedMacro.ShiftBindingOption, Mode=TwoWay}"
+                                          DisplayMemberPath="Label" Margin="0,6,0,0" />
+                              </StackPanel>
+                              <StackPanel Width="230" Margin="0,0,12,0">
+                                <TextBlock Text="Perfil de aplicación (.exe; vacío = global)" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                <DockPanel Margin="0,6,0,0">
+                                  <Button DockPanel.Dock="Right" Content="Elegir .exe" Click="LinkMacroToApplication" Style="{StaticResource QuietButton}"
+                                          Padding="8,5" Margin="6,0,0,0" />
+                                  <TextBox Text="{Binding SelectedMacro.ApplicationExecutable, UpdateSourceTrigger=PropertyChanged}"
+                                           VerticalContentAlignment="Center" ToolTip="Ruta completa del .exe para esta asignación; vacío usa la macro en cualquier aplicación." />
+                                </DockPanel>
+                              </StackPanel>
+                              <StackPanel Width="210">
+                                <TextBlock Text="Mantener G-Shift al sostener" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                <ComboBox ItemsSource="{Binding Bindings}" SelectedItem="{Binding GShiftTriggerOption, Mode=TwoWay}"
+                                          DisplayMemberPath="Label" Margin="0,6,0,0" />
+                              </StackPanel>
+                              <StackPanel Width="210" Margin="0,0,12,0">
+                                <TextBlock Text="Repetición" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                <ComboBox ItemsSource="{Binding RepeatModes}" SelectedItem="{Binding SelectedMacro.RepeatModeOption, Mode=TwoWay}"
+                                          DisplayMemberPath="Label" Margin="0,6,0,0" />
+                              </StackPanel>
+                              <StackPanel Width="210">
+                                <TextBlock Text="Intervalo de repetición" Foreground="{StaticResource TextMuted}" FontSize="11" />
+                                <DockPanel Margin="0,4,0,0">
+                                  <TextBlock DockPanel.Dock="Right" Text="{Binding Value, ElementName=MacroRepeatDelay, StringFormat={}{0} ms}"
+                                             Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                  <Slider x:Name="MacroRepeatDelay" Minimum="1" Maximum="1000" SmallChange="1" TickFrequency="1"
+                                          IsSnapToTickEnabled="True" Value="{Binding SelectedMacro.RepeatDelayMs, Mode=TwoWay}" />
+                                </DockPanel>
+                              </StackPanel>
+                            </WrapPanel>
+                          </Grid>
                           </Grid>
                           <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="320"
                                     Visibility="{Binding HasSelectedMacro, Converter={StaticResource InverseBoolToVisibility}}">
                             <TextBlock Text="Crea tu primera macro" FontSize="19" FontWeight="Bold" TextAlignment="Center" />
-                            <TextBlock Text="Graba teclas, clics y rueda. La macro se guarda en este PC y funciona mientras Nexo esté abierto." Foreground="{StaticResource TextMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
+                            <TextBlock Text="Graba teclado y ratón. La macro se guarda en este PC y funciona mientras Nexo esté abierto." Foreground="{StaticResource TextMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
                           </StackPanel>
                         </Grid>
                     </Border>

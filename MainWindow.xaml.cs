@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using NexoHub.Models;
+using NexoHub.Services;
 using NexoHub.ViewModels;
 
 namespace NexoHub;
@@ -13,6 +15,8 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel = new();
     private readonly DispatcherTimer _scanTimer = new() { Interval = TimeSpan.FromSeconds(12) };
     private readonly DispatcherTimer _xboxInputTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
+    private readonly DispatcherTimer _profileSwitchTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly Dictionary<int, XboxMacroInputTracker> _xboxMacroTrackers = [];
 
     public MainWindow()
     {
@@ -22,6 +26,7 @@ public partial class MainWindow : Window
         Closing += WindowClosing;
         _scanTimer.Tick += ScanTimerTick;
         _xboxInputTimer.Tick += XboxInputTimerTick;
+        _profileSwitchTimer.Tick += ProfileSwitchTimerTick;
     }
 
     private async void WindowLoaded(object sender, RoutedEventArgs e)
@@ -29,17 +34,73 @@ public partial class MainWindow : Window
         await _viewModel.RefreshAsync();
         _scanTimer.Start();
         _xboxInputTimer.Start();
+        _profileSwitchTimer.Start();
     }
 
     private async void ScanTimerTick(object? sender, EventArgs e) => await _viewModel.RefreshAsync();
     private void XboxInputTimerTick(object? sender, EventArgs e)
     {
-        var selected = _viewModel.SelectedDevice;
-        if (selected?.Device.XInputSlot is int slot) selected.XboxInput.Refresh(slot);
+        var activeSlots = new HashSet<int>();
+        foreach (var device in _viewModel.Devices.Where(device => device.Device.XInputSlot is not null))
+        {
+            var slot = device.Device.XInputSlot!.Value;
+            activeSlots.Add(slot);
+            if (!_xboxMacroTrackers.TryGetValue(slot, out var tracker))
+                _xboxMacroTrackers[slot] = tracker = new XboxMacroInputTracker();
+            ProcessXboxMacroTransitions(tracker.Update(device.XboxInput.Refresh(slot)));
+        }
+
+        foreach (var slot in _xboxMacroTrackers.Keys.Where(slot => !activeSlots.Contains(slot)).ToArray())
+        {
+            ProcessXboxMacroTransitions(_xboxMacroTrackers[slot].Update(null));
+            _xboxMacroTrackers.Remove(slot);
+        }
+    }
+
+    private void ProcessXboxMacroTransitions(IEnumerable<XboxMacroInputTransition> transitions)
+    {
+        foreach (var transition in transitions)
+            _viewModel.MacroManager.ProcessXboxMacroInput(transition.Trigger, transition.IsDown);
+    }
+    private void ProfileSwitchTimerTick(object? sender, EventArgs e)
+    {
+        var window = GetForegroundWindow();
+        if (GetWindowThreadProcessId(window, out var processId) == 0)
+        {
+            _viewModel.MacroManager.SetActiveApplication(null);
+            return;
+        }
+        if (processId == (uint)Environment.ProcessId)
+        {
+            _viewModel.MacroManager.SetActiveApplication(null);
+            return;
+        }
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            if (process.MainModule?.FileName is string path) _viewModel.SelectProfilesForApplication(path);
+            else _viewModel.MacroManager.SetActiveApplication(null);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)
+        {
+            _viewModel.MacroManager.SetActiveApplication(null);
+        }
     }
     private async void RefreshDevices(object sender, RoutedEventArgs e) => await _viewModel.RefreshAsync();
     private async void ReadLogitechCapabilities(object sender, RoutedEventArgs e) => await _viewModel.ReadLogitechCapabilitiesAsync();
+    private async void ApplyLogitechDpi(object sender, RoutedEventArgs e) => await _viewModel.ApplyLogitechDpiAsync();
+    private async void ReadLogitechMouseIdentity(object sender, RoutedEventArgs e) => await _viewModel.IdentifyLogitechMouseAsync();
     private void ToggleAuxiliary(object sender, RoutedEventArgs e) => _viewModel.ShowAuxiliary = !_viewModel.ShowAuxiliary;
+    private void AddLogitechDpiStage(object sender, RoutedEventArgs e) => _viewModel.SelectedDevice?.AddLogitechDpiStage();
+    private void RemoveLogitechDpiStage(object sender, RoutedEventArgs e) => _viewModel.SelectedDevice?.RemoveLogitechDpiStage();
+    private void AddDeviceLocalProfile(object sender, RoutedEventArgs e) => _viewModel.AddDeviceLocalProfile();
+    private void RemoveDeviceLocalProfile(object sender, RoutedEventArgs e) => _viewModel.RemoveDeviceLocalProfile();
+    private void LinkDeviceProfileApplication(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Asociar perfil local a una aplicación", Filter = "Aplicación (*.exe)|*.exe", CheckFileExists = true };
+        if (dialog.ShowDialog(this) == true) _viewModel.LinkDeviceProfileToApplication(dialog.FileName);
+    }
+    private void UnlinkDeviceProfileApplication(object sender, RoutedEventArgs e) => _viewModel.UnlinkDeviceProfileFromApplication();
 
     private void ApplyAudioLevel(object sender, RoutedEventArgs e)
     {
@@ -136,12 +197,38 @@ public partial class MainWindow : Window
     private void NewMacro(object sender, RoutedEventArgs e) => _viewModel.MacroManager.NewMacro();
     private void StartMacroRecording(object sender, RoutedEventArgs e) => _viewModel.MacroManager.StartRecording();
     private void StopMacroRecording(object sender, RoutedEventArgs e) => _viewModel.MacroManager.StopRecording();
+    private void AddMacroKeyAction(object sender, RoutedEventArgs e) => _viewModel.MacroManager.AddKeyAction();
+    private void AddMacroSystemAction(object sender, RoutedEventArgs e) => _viewModel.MacroManager.AddSystemCommandAction();
+    private void MoveMacroStepUp(object sender, RoutedEventArgs e) => MoveMacroStep(sender, -1);
+    private void MoveMacroStepDown(object sender, RoutedEventArgs e) => MoveMacroStep(sender, 1);
+    private void DeleteMacroStep(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: MacroStep step }) _viewModel.MacroManager.RemoveStep(step);
+    }
     private void SaveMacro(object sender, RoutedEventArgs e) => _viewModel.MacroManager.Save();
+    private void LinkMacroToApplication(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.MacroManager.SelectedMacro is not { } macro) return;
+        var dialog = new OpenFileDialog { Title = "Asociar macro a una aplicación", Filter = "Aplicación (*.exe)|*.exe", CheckFileExists = true };
+        if (dialog.ShowDialog(this) == true) macro.ApplicationExecutable = dialog.FileName;
+    }
+
+    private void MoveMacroStep(object sender, int offset)
+    {
+        if (sender is Button { Tag: MacroStep step }) _viewModel.MacroManager.MoveStep(step, offset);
+    }
 
     private void WindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _scanTimer.Stop();
         _xboxInputTimer.Stop();
+        _profileSwitchTimer.Stop();
         _viewModel.MacroManager.Dispose();
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 }

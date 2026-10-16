@@ -80,6 +80,9 @@ public sealed class HidDeviceEnumerator
             return new("blue-yeti-classic", "Blue Microphones", "Yeti Classic", vendor, product, DeviceKind.Microphone, false, "Nombre de Windows y firma yeti_classic en G HUB.");
         if (vendor == 0x046D && product == 0xC539 && text.Contains("PRO WIRELESS", StringComparison.OrdinalIgnoreCase))
             return new("logitech-pro-wireless", "Logitech G", "PRO WIRELESS", vendor, product, DeviceKind.Mouse, false, "Windows identifica el receptor como PRO WIRELESS; la captura de G HUB confirma el nombre del modelo.");
+        if (vendor == 0x046D && product == 0xC547 && InferKind(endpoints) == DeviceKind.Mouse)
+            return new("logitech-lightspeed-mouse", "Logitech G", "Ratón Logitech G LIGHTSPEED", vendor, product,
+                DeviceKind.Mouse, false, "Windows confirma un ratón Logitech en el receptor C547; falta respuesta del dispositivo para confirmar el modelo exacto.");
         if (vendor == 0x046D && product == 0xC52B)
             return new("logitech-usb-receiver", "Logitech", "Receptor Logitech USB", vendor, product, DeviceKind.Receiver, true, "Windows registra Logitech USB Input Device; no se identificó el periférico emparejado.");
         if ((vendor == 0x0C45 && product == 0x8006) || text.Contains("AK820", StringComparison.OrdinalIgnoreCase))
@@ -102,6 +105,11 @@ public sealed class HidDeviceEnumerator
 
     private static DeviceKind InferKind(IEnumerable<Endpoint> endpoints)
     {
+        var collections = endpoints.Select(endpoint => endpoint.HidInterface).OfType<HidInterfaceInfo>();
+        if (collections.Any(item => item.UsagePage == 0x0001 && item.Usage == 0x0002)) return DeviceKind.Mouse;
+        if (collections.Any(item => item.UsagePage == 0x0001 && item.Usage == 0x0006)) return DeviceKind.Keyboard;
+        if (collections.Any(item => item.UsagePage == 0x0001 && item.Usage is 0x0004 or 0x0005)) return DeviceKind.Gamepad;
+
         var paths = string.Join(" ", endpoints.Select(endpoint => endpoint.Path));
         if (paths.Contains("UP:0001_U:0002", StringComparison.OrdinalIgnoreCase)) return DeviceKind.Mouse;
         if (paths.Contains("UP:0001_U:0006", StringComparison.OrdinalIgnoreCase)) return DeviceKind.Keyboard;
