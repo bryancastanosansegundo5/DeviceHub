@@ -6,7 +6,7 @@ Fecha: 16 de octubre de 2026.
 
 - Programa: **Nexo Device Hub**, aplicación de escritorio WPF sobre .NET 10.
 - Objetivo de esta etapa: continuar el soporte del Logitech G PRO Wireless y estudiar la integración segura de las funciones de Onboard Memory Manager (OMM).
-- Trabajo en el worktree aislado `C:\Users\bcastano\.codex\worktrees\logitech-rea-ui\DeviceHub`, actualizado con `origin/main` en `21df94b` (se creó originalmente desde `f261cdf`). La integración final de esta iteración irá a `main`; el checkout original se mantiene libre durante el desarrollo.
+- Trabajo en el worktree aislado `C:\Users\bcastano\.codex\worktrees\logitech-rea-ui\DeviceHub`, actualizado con `origin/main` en `788ee52` antes de esta continuación (se creó originalmente desde `f261cdf`). La integración final de esta iteración irá a `main`; el checkout original se mantiene libre durante el desarrollo.
 
 ## Archivos tocados
 
@@ -21,19 +21,19 @@ La huella acumulada es `(líneas añadidas + eliminadas frente a d621167) / lín
 | `Models/DeviceLocalProfile.cs` | **4,2 %** | Conserva la etapa DPI local seleccionada. |
 | `Services/DeviceLocalProfileLibrary.cs` | **29,3 %** | Valida cuatro etapas de 100 a 25.600 DPI, la etapa activa y polling de 125/250/500/1000 Hz para perfiles Logitech. |
 | `Services/HidDeviceEnumerator.cs` | **22,1 %** | Reconoce C539 por nombre PnP y lee descriptor HID sin enviar reportes. |
-| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Lee manualmente versión, features OMM, tipo HID++ bruto, DPI actual si 0x2201 está anunciado y presencia de 0x8060 en ranuras de ratón 1–6. |
+| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Lee manualmente versión, features OMM, tipo HID++ bruto, DPI actual si 0x2201 está anunciado y polling actual si 0x8060 está anunciado en ranuras de ratón 1–6. |
 | `Models/HardwareDevice.cs` | **31,0 %** | Añade metadatos de las colecciones HID al inventario tipado del dispositivo. |
 | `ViewModels/DeviceCardViewModel.cs` | **76,4 %** | Adapta la ficha C539, cambia de etapa DPI local y actualiza propiedades para la interfaz. |
-| `ViewModels/MainViewModel.cs` | **43,9 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas y muestra features, DPI actual leído y estado de 0x8060. |
-| `checks/NexoHub.Checks/Program.cs` | **140,4 %** | Comprueba framing HID++, filtro de versión/tipo, eco ping, índice cero, features DPI, lectura de sensor y edición local de etapa/valor. |
-| `docs/device-inventory-analysis.md` | **189,7 %** | Registra límites REA de G HUB, filtro OMM, wrappers DPI/perfiles/polling y los resultados de búsqueda selectiva. |
+| `ViewModels/MainViewModel.cs` | **43,9 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas y muestra features, DPI y polling actual leídos. |
+| `checks/NexoHub.Checks/Program.cs` | **160,5 %** | Comprueba framing HID++, filtro de versión/tipo, eco ping, features DPI y lectura de sensor/polling. |
+| `docs/device-inventory-analysis.md` | **203,4 %** | Registra límites REA de G HUB, filtro OMM, wrappers DPI/perfiles/polling y los resultados de búsqueda selectiva. |
 | `README.md` | **3,5 %** | Corrige el modelo Logitech mostrado y aclara que DPI/polling todavía se guardan solo en Nexo. |
 | `dist/LEEME.md` | **18,2 %** | Corrige el nombre del ratón y el estado local de la función en las notas del paquete. |
 | `AVANCES/APLICACION.md` | **100 %** | Mantiene este registro de cambios, evidencias y trabajo pendiente. |
 
 ## Estado funcional actual
 
-La ficha del Logitech G PRO Wireless permite seleccionar una de cuatro etapas, editar su valor con un deslizador y configurar polling; los cambios se guardan como perfil local en el PC. La consulta HID++ manual pregunta si la feature pública `0x8060` está anunciada cuando el tipo bruto es mouse `0x03` y, si `0x2201` está disponible, lee el DPI actual/default del sensor 0. No cambia polling ni DPI. Una consulta de solo lectura anterior al C539 respondió en la ranura 1 con HID++ 4.2 y las features `0x0003`, `0x0005`, `0x8100` y al menos una entre `0x2201`/`0x2202`; `GetDeviceType` devolvió `0x03`. La especificación publicada enumera Mouse como tipo HID++ `3`; OMM usa internamente `BaseDeviceType.MOUSE=2` y no se ha probado que la DLL los traduzca de esa manera. No se confirma aceptación OMM. No se escriben perfiles de memoria integrada.
+La ficha del Logitech G PRO Wireless permite seleccionar una de cuatro etapas, editar su valor con un deslizador y configurar polling; esos cambios aún se guardan como perfil local en el PC. La acción manual HID++ pregunta si la feature pública `0x8060` está anunciada cuando el tipo bruto es mouse `0x03` y, si la anuncia, consulta el intervalo actual; si `0x2201` está disponible, lee DPI actual/default del sensor 0. Ninguna de esas consultas cambia el dispositivo. Una consulta anterior de solo lectura al C539 respondió en la ranura 1 con HID++ 4.2, features `0x0003`, `0x0005`, `0x8100` y al menos una entre `0x2201`/`0x2202`; `GetDeviceType` devolvió `0x03`. OMM usa internamente `BaseDeviceType.MOUSE=2` y no se ha probado que la DLL traduzca el tipo HID++ `0x03` de esa manera. No se confirma aceptación OMM ni se escriben perfiles de memoria integrada.
 
 **La etapa Logitech no está terminada.** La consulta HID++ real confirma transporte y features en la ranura 1, pero no el filtro completo de compatibilidad OMM. No se han probado escrituras, lectura de vuelta de ajustes ni persistencia tras reconexión.
 
@@ -130,7 +130,7 @@ La ficha del Logitech G PRO Wireless permite seleccionar una de cuatro etapas, e
 - Cambios de esta iteración: el lector mantiene `0x2201` y `0x2202` separados, la ficha enseña ambos estados y el filtro conserva la regla verificada de OMM (cualquiera de los dos). También se actualizan este registro y `docs/device-inventory-analysis.md`.
 - Huella acumulada desde `d621167`: `Services/LogitechHidppCapabilityReader.cs` (100 %, archivo nuevo desde la base), `ViewModels/MainViewModel.cs` (41,3 %), `checks/NexoHub.Checks/Program.cs` (102,6 %), `docs/device-inventory-analysis.md` (158,6 %) y `AVANCES/APLICACION.md` (100 %, archivo nuevo desde la base). El porcentaje representa cambios de líneas, no cobertura funcional.
 - Validación pendiente en el cierre de esta iteración: build Release, 7 grupos de checks y `git diff --check`. No se consultó el ratón ni se ejecutó G HUB u OMM durante esta continuación.
-- La ingeniería inversa de G HUB no está completa y su interfaz no tiene paridad total con Nexo. Siguiente paso: acotar por búsqueda de offsets la llamada de polling/DPI y contrastarla con IPC, sin repetir el parseo de 7,37 MB que ya agotó el límite de memoria.
+- La ingeniería inversa de G HUB no está completa y su interfaz no tiene paridad total con Nexo. Los siguientes pasos activos son seguir el guardado de `reportRate`/DPI hacia su backend y documentar qué operaciones de ratón pueden confirmarse en el C539.
 
 ## Continuación REA y lectura DPI · 16 de octubre de 2026
 
@@ -140,3 +140,12 @@ La ficha del Logitech G PRO Wireless permite seleccionar una de cuatro etapas, e
 - Se añadió el selector de etapa activa y el deslizador DPI local inspirado en la captura. El perfil guarda la etapa activa, y las comprobaciones verifican que solo cambie la etapa seleccionada y que se respeten los límites. Sigue siendo edición local.
 - Huella acumulada frente a `d621167`: `MainWindow.xaml` **17,3 %**; `Models/DeviceLocalProfile.cs` **4,2 %**; `Services/DeviceLocalProfileLibrary.cs` **29,3 %**; `Services/LogitechHidppCapabilityReader.cs` **100 %** (archivo nuevo); `ViewModels/DeviceCardViewModel.cs` **76,4 %**; `ViewModels/MainViewModel.cs` **43,9 %**; `checks/NexoHub.Checks/Program.cs` **140,4 %**; `docs/device-inventory-analysis.md` **189,7 %**; este registro **100 %** (nuevo). El porcentaje mide líneas cambiadas, no funciones terminadas.
 - Validación: build Release correcto, 0 errores y 0 advertencias; los 7 grupos de `NexoHub.Checks` pasaron. Un harness temporal hizo una sola lectura real: ranura 1, HID++ 4.2, feature `0x2201` en índice `0x0C`, un sensor, 1400 DPI actuales/800 predeterminados. No se abrió G HUB/OMM ni se envió ninguna escritura HID. Faltan compatibilidad OMM confirmada, paridad de UI y cualquier escritura que demuestre lectura posterior y persistencia.
+
+## Continuación REA y lectura de polling · 16 de octubre de 2026
+
+- El seguimiento REA acotado de `app.min.js` localizó `getReportRateList` en el módulo 21835 y solo en la ruta de teclados con `hasPerformanceReportRate()`. Usa `electronNet.send` → IPC `SOCKET_SEND` → socket de `main`; no se atribuye al ratón C539.
+- Al guardar `setStandaloneReportRate` (módulo 84135) crea `reportRate:{value}` y despacha `MTX` (`setOnboardProfileConfiguration`). El handler envía un `SET` a `/onboard_profiles/%(id)s/tag_configuration` por `electronNet.send`/IPC/socket. Esto acredita el envío de la petición de configuración desde G HUB, no la escritura física al C539 ni su persistencia. `assignDPI`, `restoreDefaults` y `updateMouseSettingsWrapper` modifican acciones/estado Redux; en esta pasada no se conectaron al mismo handler. REA tampoco logró parsear íntegro el bundle principal.
+- Como referencia de protocolo independiente, el código público de libratbag implementa `0x8060` función 1 (`GetReportRate`): envía parámetro 0 y recibe el intervalo actual en milisegundos en el primer parámetro ([código de libratbag](https://github.com/libratbag/libratbag/blob/master/src/hidpp20.c#L1581-L1637)). Logitech confirma el nombre/ID `0x8060` en su catálogo HID++; el detalle de función no procede de una especificación oficial de Logitech.
+- Nexo consulta ahora ese getter únicamente durante la acción manual, solo para C539 exacto, tipo HID++ bruto `0x03` y feature `0x8060` anunciada. Valida reporte largo, ranura, índice, función/SWID y un intervalo distinto de cero. No se envía el setter 2 ni se cambia polling/perfil; falta confirmar una respuesta real de polling de esta unidad.
+- El análisis de OMM se mantiene separado: su clase administrada `Feature8061` tiene ID `0x8061`, lista de tasas/capacidades y sin getter explícito de tasa actual. No hay evidencia de que sea alias de `0x8060`.
+- La ingeniería inversa de G HUB y la paridad de interfaz siguen incompletas; los siguientes pasos son encontrar quién aporta `reportRates` para el C539, revisar el handler de `tag_configuration` y validar la respuesta de polling de esta unidad.

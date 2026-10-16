@@ -200,6 +200,29 @@ static void CheckLogitechHidppMessages()
         LogitechHidppCapabilityReader.TryReadDeviceTypeResponse(typeResponse, deviceIndex, 3, softwareId, out var type) &&
         type == 3 && !LogitechHidppCapabilityReader.TryReadDeviceTypeResponse(typeResponse, deviceIndex, 4,
             softwareId, out _), "se consulta y valida GetDeviceType en la feature 0x0005");
+    var reportRateGet = LogitechHidppCapabilityReader.BuildGetReportRateRequest(deviceIndex, 15, softwareId);
+    var reportRateResponse = new byte[20];
+    reportRateResponse[0] = 0x11;
+    reportRateResponse[1] = deviceIndex;
+    reportRateResponse[2] = 15;
+    reportRateResponse[3] = 0x1A;
+    reportRateResponse[4] = 1;
+    Assert(reportRateGet.Take(5).SequenceEqual(new byte[] { 0x11, deviceIndex, 15, 0x1A, 0 }) &&
+        reportRateGet.Skip(5).All(value => value == 0) &&
+        LogitechHidppCapabilityReader.TryReadReportRateResponse(reportRateResponse, deviceIndex, 15, softwareId,
+            out var reportRateMs) && reportRateMs == 1,
+        "se construye y valida el getter de polling HID++ 0x8060 sin incluir setter");
+    reportRateResponse[1]++;
+    Assert(!LogitechHidppCapabilityReader.TryReadReportRateResponse(reportRateResponse, deviceIndex, 15, softwareId,
+        out _), "se rechaza una tasa HID++ de otra ranura");
+    reportRateResponse[1] = deviceIndex;
+    reportRateResponse[3] = 0x2A;
+    Assert(!LogitechHidppCapabilityReader.TryReadReportRateResponse(reportRateResponse, deviceIndex, 15, softwareId,
+        out _), "se rechaza una respuesta HID++ de polling con función/SWID distinto");
+    reportRateResponse[3] = 0x1A;
+    reportRateResponse[4] = 0;
+    Assert(!LogitechHidppCapabilityReader.TryReadReportRateResponse(reportRateResponse, deviceIndex, 15, softwareId,
+        out _), "se rechaza un intervalo de polling cero");
     var sensorCountRequest = LogitechHidppCapabilityReader.BuildGetSensorCountRequest(deviceIndex, 7, softwareId);
     var sensorCountResponse = new byte[20];
     sensorCountResponse[0] = 0x11;

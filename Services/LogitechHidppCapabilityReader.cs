@@ -71,6 +71,9 @@ public sealed class LogitechHidppCapabilityReader
             var reportRateFeatureIndex = hidppDeviceType == HidppMouseDeviceType
                 ? await ReadFeatureIndexAsync(stream, index, AdjustableReportRateFeatureId, cancellationToken)
                 : null;
+            var reportRateMs = reportRateFeatureIndex is > 0
+                ? await ReadCurrentReportRateAsync(stream, index, reportRateFeatureIndex.Value, cancellationToken)
+                : null;
             var dpi = hidppDeviceType == HidppMouseDeviceType && adjustableDpiFeatureIndex is > 0
                 ? await ReadCurrentDpiAsync(stream, index, adjustableDpiFeatureIndex.Value, cancellationToken)
                 : null;
@@ -80,6 +83,7 @@ public sealed class LogitechHidppCapabilityReader
             {
                 AdjustableDpiFeatureIndex = adjustableDpiFeatureIndex,
                 AdjustableReportRateFeatureIndex = reportRateFeatureIndex,
+                CurrentReportRateMs = reportRateMs,
                 CurrentDpi = dpi
             });
         }
@@ -156,6 +160,28 @@ public sealed class LogitechHidppCapabilityReader
             response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
             response[3] != (byte)(0x20 | softwareId)) return false;
         deviceType = response[4];
+        return true;
+    }
+
+    public static byte[] BuildGetReportRateRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x10 | softwareId);
+        return report;
+    }
+
+    public static bool TryReadReportRateResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId, out byte rateMs)
+    {
+        rateMs = 0;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != (byte)(0x10 | softwareId) || response[4] == 0) return false;
+        rateMs = response[4];
         return true;
     }
 
@@ -259,6 +285,16 @@ public sealed class LogitechHidppCapabilityReader
             : null;
     }
 
+    private static async Task<byte?> ReadCurrentReportRateAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, CancellationToken cancellationToken)
+    {
+        var request = BuildGetReportRateRequest(deviceIndex, featureIndex, SoftwareId);
+        await stream.WriteAsync(request, cancellationToken);
+        var response = await ReadResponseAsync(stream, deviceIndex, featureIndex, request[3], cancellationToken);
+        return response is not null && TryReadReportRateResponse(response, deviceIndex, featureIndex, SoftwareId,
+            out var rateMs) ? rateMs : null;
+    }
+
     private static async Task<byte[]?> ReadResponseAsync(
         FileStream stream, byte deviceIndex, byte featureIndex, byte functionAndSoftwareId,
         CancellationToken cancellationToken)
@@ -295,6 +331,7 @@ public sealed record LogitechHidppSlotStatus(
 {
     public byte? AdjustableDpiFeatureIndex { get; init; }
     public byte? AdjustableReportRateFeatureIndex { get; init; }
+    public byte? CurrentReportRateMs { get; init; }
     public LogitechDpiReading? CurrentDpi { get; init; }
 
     public bool HasAdjustableDpi => HasFeature2201 || HasFeature2202;
