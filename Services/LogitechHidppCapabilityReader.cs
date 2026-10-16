@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.Win32.SafeHandles;
 using NexoHub.Models;
 
@@ -54,9 +55,8 @@ public sealed class LogitechHidppCapabilityReader
             }
 
             slots.Add(new(index, protocol.Value.Major, protocol.Value.Minor,
-                features.GetValueOrDefault(0x0003), features.GetValueOrDefault(0x0005),
-                features.GetValueOrDefault(0x2201) || features.GetValueOrDefault(0x2202),
-                features.GetValueOrDefault(0x8100)));
+                features[0x0003], features[0x0005],
+                features[0x2201] || features[0x2202], features[0x8100]));
         }
 
         return slots;

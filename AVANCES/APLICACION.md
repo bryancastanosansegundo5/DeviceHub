@@ -19,7 +19,7 @@ La huella es `(líneas añadidas + eliminadas) / líneas del archivo base en HEA
 | `MainWindow.xaml` | **10,3 %** | Mejora la presentación de DPI y polling para el ratón reconocido, con etapas claras y acento visual; conserva el guardado local existente. |
 | `Services/DeviceLocalProfileLibrary.cs` | **26,8 %** | Valida cuatro etapas de 100 a 25.600 DPI y polling de 125/250/500/1000 Hz para perfiles Logitech. |
 | `Services/HidDeviceEnumerator.cs` | **1,8 %** | Reconoce C539 por nombre PnP y lee página/uso y longitudes del descriptor HID, sin enviar reportes. |
-| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Borrador de consulta manual HID++ de solo lectura para versión y features de OMM; sin integración ni validación aún. |
+| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Borrador de consulta manual HID++ de solo lectura para versión y features de OMM; compila, pero aún no está integrado ni validado en el dispositivo. |
 | `Models/HardwareDevice.cs` | **100 %** | Añade metadatos de las colecciones HID al inventario tipado del dispositivo. |
 | `ViewModels/DeviceCardViewModel.cs` | **7,3 %** | Ajusta título y rango DPI de la ficha al modelo Logitech identificado. |
 | `checks/NexoHub.Checks/Program.cs` | **22,8 %** | Comprueba la identidad del adaptador, límites DPI, rechazo de polling no admitido y lectura/escritura del perfil local. |
@@ -78,14 +78,15 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 
 - El inventario pasivo previo observó en C539 una colección HID `FF00/0002` con informes IN/OUT de 20 bytes y otra `FF00/0001` de 7 bytes. Esto no demuestra qué features responde el ratón emparejado.
 - Se empezó `Services/LogitechHidppCapabilityReader.cs`: limita el intento al Logitech G PRO Wireless C539, busca el endpoint HID de 20 bytes y prepara consultas IRoot `GetFeature` y versión de protocolo para ranuras 1–6. No envía comandos DPI ni escribe perfiles.
-- El lector aún no se conectó a `MainViewModel`/`MainWindow`, no tiene checks de paquetes/respuestas, no se compiló ni ejecutó desde que se añadió y no se lanzó contra el ratón.
+- El lector aún no se conectó a `MainViewModel`/`MainWindow`, no tiene checks de paquetes/respuestas ni se lanzó contra el ratón. El build inicial encontró dos errores de compilación en ese archivo; se corrigieron y el build de `main` terminó con 0 advertencias y 0 errores.
 - Las huellas de la tabla son de la iteración anterior y deben recalcularse al retomar. El archivo lector es nuevo y figura como 100 % creado.
-- El trabajo sigue en `C:\Users\bcastano\.codex\worktrees\logitech-rea-ui\DeviceHub`, aislado del checkout original.
+- El commit `4d4a845` ya se adelantó a `main`; el checkout principal produjo `bin\Release\net10.0-windows\NexoHub.exe`. El worktree aislado sigue conservado para retomar pruebas y aún requiere sincronizar los dos arreglos de compilación.
+- `Nexo Device Hub.lnk` está en la raíz del checkout principal y apunta al ejecutable generado allí; el acceso directo está excluido de Git.
 
 ### Continuación al reanudar
 
 1. Contrastar y corregir el formato de respuesta HID++ con la documentación y el OMM analizado; añadir checks de paquetes/respuestas.
-2. Compilar y ejecutar las comprobaciones en el worktree. Después, hacer una consulta manual de solo lectura al endpoint identificado, sin sondeo periódico.
+2. Ejecutar las comprobaciones en el worktree y sincronizarlo con `main`. Después, hacer una consulta manual de solo lectura al endpoint identificado, sin sondeo periódico.
 3. Con la evidencia resultante, conectar el estado a la ficha Logitech, actualizar REA/documentación y recalcular las huellas.
 4. Mantener DPI/polling y perfiles a bordo sin escritura hasta validar comandos, confirmación y lectura posterior; verificar reconexión antes de declarar persistencia.
 ## Fuentes oficiales
