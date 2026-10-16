@@ -1,17 +1,22 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using NexoHub.Models;
 
 namespace NexoHub.ViewModels;
 
-public sealed class DeviceCardViewModel
+public sealed class DeviceCardViewModel : INotifyPropertyChanged
 {
+    private int _activeLogitechDpiStage;
+
     public DeviceCardViewModel(HardwareDevice device, AdapterInfo adapter, DeviceLocalProfile? localProfile = null)
     {
         Device = device;
         Adapter = adapter;
         Capabilities = new ObservableCollection<CapabilityInfo>(adapter.Capabilities);
         LocalProfile = localProfile ?? new DeviceLocalProfile();
+        _activeLogitechDpiStage = Math.Clamp(LocalProfile.ActiveDpiStage, 1, 4);
+        LocalProfile.ActiveDpiStage = _activeLogitechDpiStage;
         XboxInput = new XboxInputViewModel();
         AudioEndpoints = new ObservableCollection<AudioEndpointViewModel>((device.AudioEndpoints ?? [])
             .Select(endpoint => new AudioEndpointViewModel(endpoint)));
@@ -56,6 +61,31 @@ public sealed class DeviceCardViewModel
     public bool IsLogitechProWireless => Device.ModelKey == "logitech-pro-wireless" && Device.VendorId == 0x046D && Device.ProductId == 0xC539;
     public int LogitechDpiMaximum => 25600;
     public string LogitechDpiRange => $"Cuatro etapas · 100–{LogitechDpiMaximum:N0} DPI";
+    public int ActiveLogitechDpiStage => _activeLogitechDpiStage;
+    public string LogitechDpiStageLabel => $"ETAPA {_activeLogitechDpiStage} · PERFIL LOCAL";
+    public int LogitechDpiStage1Value => LocalProfile.Dpi1;
+    public int LogitechDpiStage2Value => LocalProfile.Dpi2;
+    public int LogitechDpiStage3Value => LocalProfile.Dpi3;
+    public int LogitechDpiStage4Value => LocalProfile.Dpi4;
+    public double SelectedLogitechDpiValue
+    {
+        get => GetActiveLogitechDpiValue();
+        set
+        {
+            var dpi = (int)Math.Round(Math.Clamp(value, 100d, LogitechDpiMaximum), MidpointRounding.AwayFromZero);
+            if (GetActiveLogitechDpiValue() == dpi) return;
+            SetActiveLogitechDpiValue(dpi);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LogitechDpiStage1Value));
+            OnPropertyChanged(nameof(LogitechDpiStage2Value));
+            OnPropertyChanged(nameof(LogitechDpiStage3Value));
+            OnPropertyChanged(nameof(LogitechDpiStage4Value));
+        }
+    }
+    public bool IsLogitechDpiStage1Selected { get => ActiveLogitechDpiStage == 1; set { if (value) SetActiveLogitechDpiStage(1); } }
+    public bool IsLogitechDpiStage2Selected { get => ActiveLogitechDpiStage == 2; set { if (value) SetActiveLogitechDpiStage(2); } }
+    public bool IsLogitechDpiStage3Selected { get => ActiveLogitechDpiStage == 3; set { if (value) SetActiveLogitechDpiStage(3); } }
+    public bool IsLogitechDpiStage4Selected { get => ActiveLogitechDpiStage == 4; set { if (value) SetActiveLogitechDpiStage(4); } }
     public bool IsMicrophone => Device.Kind == DeviceKind.Microphone;
     public bool IsHeadset => Device.Kind == DeviceKind.Headset;
     public bool IsGamepad => Device.Kind == DeviceKind.Gamepad;
@@ -65,6 +95,42 @@ public sealed class DeviceCardViewModel
     public bool IsAstroA50 => Device.ModelKey == "astro-a50";
     public bool HasLocalEditor => IsLogitechMouse || IsAjazzKeyboard || IsXboxElite || IsAstroA50;
     public bool HasAudioEndpoints => AudioEndpoints.Count > 0;
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private int GetActiveLogitechDpiValue() => ActiveLogitechDpiStage switch
+    {
+        1 => LocalProfile.Dpi1,
+        2 => LocalProfile.Dpi2,
+        3 => LocalProfile.Dpi3,
+        _ => LocalProfile.Dpi4
+    };
+
+    private void SetActiveLogitechDpiValue(int value)
+    {
+        switch (ActiveLogitechDpiStage)
+        {
+            case 1: LocalProfile.Dpi1 = value; break;
+            case 2: LocalProfile.Dpi2 = value; break;
+            case 3: LocalProfile.Dpi3 = value; break;
+            default: LocalProfile.Dpi4 = value; break;
+        }
+    }
+
+    private void SetActiveLogitechDpiStage(int stage)
+    {
+        if (_activeLogitechDpiStage == stage) return;
+        _activeLogitechDpiStage = LocalProfile.ActiveDpiStage = stage;
+        OnPropertyChanged(nameof(ActiveLogitechDpiStage));
+        OnPropertyChanged(nameof(LogitechDpiStageLabel));
+        OnPropertyChanged(nameof(SelectedLogitechDpiValue));
+        OnPropertyChanged(nameof(IsLogitechDpiStage1Selected));
+        OnPropertyChanged(nameof(IsLogitechDpiStage2Selected));
+        OnPropertyChanged(nameof(IsLogitechDpiStage3Selected));
+        OnPropertyChanged(nameof(IsLogitechDpiStage4Selected));
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     public void SetLogitechHidppStatus(CapabilityInfo status)
     {

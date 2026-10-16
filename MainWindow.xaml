@@ -82,6 +82,36 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
+        <Style x:Key="LogitechDpiStageButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="Padding" Value="9,8" />
+            <Setter Property="Margin" Value="0,0,7,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="StageSurface" Background="#202326" BorderBrush="#393B3D"
+                                BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="StageSurface" Property="Background" Value="#292B2D" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="StageSurface" Property="Background" Value="#29260F" />
+                                <Setter TargetName="StageSurface" Property="BorderBrush" Value="#F5C400" />
+                                <Setter Property="Foreground" Value="#F5D84C" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="StageSurface" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="ListBox">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -400,19 +430,34 @@
                                                         </Grid>
                                                         <TextBlock Text="{Binding SelectedDevice.LogitechDpiRange}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,3,0,10" />
                                                         <UniformGrid Columns="4">
-                                                            <Border Background="#202326" BorderBrush="#393B3D" BorderThickness="1" CornerRadius="8" Padding="9,8" Margin="0,0,7,0">
-                                                                <StackPanel><TextBlock Text="01 · DPI" FontSize="9" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi1, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Center" FontSize="15" FontWeight="SemiBold" Padding="3,6" Margin="0,5,0,0" /></StackPanel>
-                                                            </Border>
-                                                            <Border Background="#202326" BorderBrush="#393B3D" BorderThickness="1" CornerRadius="8" Padding="9,8" Margin="0,0,7,0">
-                                                                <StackPanel><TextBlock Text="02 · DPI" FontSize="9" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi2, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Center" FontSize="15" FontWeight="SemiBold" Padding="3,6" Margin="0,5,0,0" /></StackPanel>
-                                                            </Border>
-                                                            <Border Background="#202326" BorderBrush="#393B3D" BorderThickness="1" CornerRadius="8" Padding="9,8" Margin="0,0,7,0">
-                                                                <StackPanel><TextBlock Text="03 · DPI" FontSize="9" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi3, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Center" FontSize="15" FontWeight="SemiBold" Padding="3,6" Margin="0,5,0,0" /></StackPanel>
-                                                            </Border>
-                                                            <Border Background="#202326" BorderBrush="#393B3D" BorderThickness="1" CornerRadius="8" Padding="9,8">
-                                                                <StackPanel><TextBlock Text="04 · DPI" FontSize="9" Foreground="{StaticResource TextMuted}" /><TextBox Text="{Binding SelectedDevice.LocalProfile.Dpi4, UpdateSourceTrigger=LostFocus}" HorizontalContentAlignment="Center" FontSize="15" FontWeight="SemiBold" Padding="3,6" Margin="0,5,0,0" /></StackPanel>
-                                                            </Border>
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage1Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 1">
+                                                                <StackPanel><TextBlock Text="ETAPA 01" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage1Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                            </RadioButton>
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage2Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 2">
+                                                                <StackPanel><TextBlock Text="ETAPA 02" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage2Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                            </RadioButton>
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage3Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 3">
+                                                                <StackPanel><TextBlock Text="ETAPA 03" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage3Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                            </RadioButton>
+                                                            <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage4Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Margin="0" AutomationProperties.Name="Seleccionar etapa DPI 4">
+                                                                <StackPanel><TextBlock Text="ETAPA 04" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage4Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                            </RadioButton>
                                                         </UniformGrid>
+                                                        <Grid Margin="0,14,0,0">
+                                                            <TextBlock Text="{Binding SelectedDevice.LogitechDpiStageLabel}" FontSize="9" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding SelectedDevice.SelectedLogitechDpiValue, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="22" FontWeight="Bold" Foreground="#F5C400" />
+                                                                <TextBlock Text="DPI" FontSize="10" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="6,0,0,3" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <Slider Minimum="100" Maximum="25600" SmallChange="50" LargeChange="1000" TickFrequency="1000"
+                                                                IsSnapToTickEnabled="False" Value="{Binding SelectedDevice.SelectedLogitechDpiValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                Foreground="#F5C400" Margin="0,2,0,0" AutomationProperties.Name="DPI de la etapa activa"
+                                                                AutomationProperties.HelpText="Modifica únicamente el perfil local de Nexo." />
+                                                        <Grid Margin="0,-2,0,9">
+                                                            <TextBlock Text="100 DPI" FontSize="9" Foreground="{StaticResource TextMuted}" />
+                                                            <TextBlock Text="25.600 DPI" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right" />
+                                                        </Grid>
                                                         <Grid Margin="0,10,0,0">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

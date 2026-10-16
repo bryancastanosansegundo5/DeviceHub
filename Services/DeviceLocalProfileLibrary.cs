@@ -51,6 +51,8 @@ public sealed class DeviceLocalProfileLibrary
         };
         if (dpiMaximum > 0)
         {
+            if (profile.ActiveDpiStage is < 1 or > 4)
+                throw new InvalidDataException("La etapa DPI activa debe estar entre 1 y 4.");
             foreach (var dpi in new[] { profile.Dpi1, profile.Dpi2, profile.Dpi3, profile.Dpi4 })
                 if (dpi is < 100 || dpi > dpiMaximum)
                     throw new InvalidDataException($"El DPI debe estar entre 100 y {dpiMaximum}.");

@@ -183,13 +183,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     var reportRate = slot.HidppDeviceType == LogitechHidppCapabilityReader.HidppMouseDeviceType
                         ? $"0x8060 {slot.AdjustableReportRateFeatureIndex switch { null => "sin respuesta/error", 0 => "no anunciada", byte featureIndex => $"índice 0x{featureIndex:X2}" }}"
                         : string.Empty;
-                    return $"Ranura {slot.DeviceIndex} · HID++ {slot.ProtocolMajor}.{slot.ProtocolMinor} · 0x0003 {(slot.HasDeviceInformation ? "sí" : "no")} · 0x0005 {(slot.HasDeviceNameAndType ? "sí" : "no")} · tipo HID++ {(slot.HidppDeviceType is byte type ? $"0x{type:X2}" : "sin respuesta")} · DPI {(slot.HasAdjustableDpi ? "sí" : "no")} · perfiles 0x8100 {(slot.HasOnboardProfiles ? "sí" : "no")}{(string.IsNullOrEmpty(reportRate) ? string.Empty : $" · {reportRate}")}";
+                    var dpi = slot.CurrentDpi is { } current
+                        ? $" · DPI actual sensor {current.SensorIndex}: {current.CurrentDpi:N0}{(current.DefaultDpi is int defaultDpi ? $" (predeterminado {defaultDpi:N0})" : string.Empty)} · sensores {current.SensorCount}"
+                        : slot.HasFeature2201 && slot.HidppDeviceType == LogitechHidppCapabilityReader.HidppMouseDeviceType
+                            ? " · DPI actual: sin respuesta/error"
+                            : string.Empty;
+                    return $"Ranura {slot.DeviceIndex} · HID++ {slot.ProtocolMajor}.{slot.ProtocolMinor} · 0x0003 {(slot.HasDeviceInformation ? "sí" : "no")} · 0x0005 {(slot.HasDeviceNameAndType ? "sí" : "no")} · tipo HID++ {(slot.HidppDeviceType is byte type ? $"0x{type:X2}" : "sin respuesta")} · DPI 0x2201 {(slot.HasFeature2201 ? "sí" : "no")} · DPI 0x2202 {(slot.HasFeature2202 ? "sí" : "no")} · perfiles 0x8100 {(slot.HasOnboardProfiles ? "sí" : "no")}{(string.IsNullOrEmpty(reportRate) ? string.Empty : $" · {reportRate}")}{dpi}";
                 })) +
                     "\n0x8060 solo indica si la feature está anunciada; todavía no hemos leído ni cambiado el polling. El tipo es el byte HID++ sin traducirlo y no demuestra compatibilidad completa con OMM.";
             var result = new CapabilityInfo("HID++ / OMM", slots.Any(slot => slot.HasRequiredFeatures)
                 ? "Features observadas" : slots.Count == 0 ? "Sin verificación" : "Features parciales", detail);
             SetLogitechProbeResult(card.Device.Id, result);
-            ConfigurationStatus = $"{card.DisplayName}: consulta HID++ finalizada; solo se leyeron versión, features, tipo y presencia de 0x8060.";
+            ConfigurationStatus = $"{card.DisplayName}: consulta HID++ finalizada; solo se leyeron versión, features, tipo, DPI actual y presencia de 0x8060.";
         }
         catch (Exception exception)
         {

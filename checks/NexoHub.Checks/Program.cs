@@ -3,6 +3,7 @@ using System.IO;
 using NexoHub.Adapters;
 using NexoHub.Models;
 using NexoHub.Services;
+using NexoHub.ViewModels;
 
 var testRoot = Path.Combine(AppContext.BaseDirectory, "self-check-data");
 if (Directory.Exists(testRoot)) Directory.Delete(testRoot, recursive: true);
@@ -67,11 +68,11 @@ static void CheckMacroRoundTrip(string root)
 static void CheckDeviceProfileRoundTrip(string root)
 {
     var library = new DeviceLocalProfileLibrary(Path.Combine(root, "device-profiles"));
-    var profile = new DeviceLocalProfile { Name = "Prueba", Dpi3 = 1450, Dpi4 = 25600, ReportRate = 500, LightingColor = "FF8844" };
+    var profile = new DeviceLocalProfile { Name = "Prueba", Dpi3 = 1450, Dpi4 = 25600, ActiveDpiStage = 3, ReportRate = 500, LightingColor = "FF8844" };
     profile.KeyboardKeyColors["0x04"] = "00AAFF";
     library.Save("logitech-pro-wireless", profile);
     var proWireless = library.Load("logitech-pro-wireless");
-    Assert(proWireless.Dpi3 == 1450 && proWireless.Dpi4 == 25600, "el G PRO Wireless conserva el DPI y acepta el máximo documentado de 25600");
+    Assert(proWireless.Dpi3 == 1450 && proWireless.Dpi4 == 25600 && proWireless.ActiveDpiStage == 3, "el G PRO Wireless conserva DPI, etapa activa y el máximo documentado de 25600");
     var invalidLogitechDpiRejected = false;
     try { library.Save("logitech-pro-wireless", new DeviceLocalProfile { Name = profile.Name, Dpi4 = 25601 }); }
     catch (InvalidDataException) { invalidLogitechDpiRejected = true; }
@@ -80,6 +81,10 @@ static void CheckDeviceProfileRoundTrip(string root)
     try { library.Save("logitech-pro-wireless", new DeviceLocalProfile { Name = profile.Name, ReportRate = 333 }); }
     catch (InvalidDataException) { invalidLogitechPollingRejected = true; }
     Assert(invalidLogitechPollingRejected, "el G PRO Wireless rechaza tasas de respuesta que no están en la lista permitida");
+    var invalidLogitechStageRejected = false;
+    try { library.Save("logitech-pro-wireless", new DeviceLocalProfile { Name = profile.Name, ActiveDpiStage = 5 }); }
+    catch (InvalidDataException) { invalidLogitechStageRejected = true; }
+    Assert(invalidLogitechStageRejected, "el G PRO Wireless rechaza una etapa DPI activa fuera de 1–4");
 
     library.Save("logitech-pro-x-superlight", profile);
     var loaded = library.Load("logitech-pro-x-superlight");
@@ -108,9 +113,10 @@ static void CheckAdapterSelection()
     var registry = new DeviceAdapterRegistry();
     var astro = registry.Describe(new HardwareDevice("astro", "Astro Gaming", "Astro A50", 0x9886, 0x0015, "USB/HID", 2, ""));
     var logitech = registry.Describe(new HardwareDevice("logi", "Logitech", "G device", 0x046D, 0xC547, "USB/HID", 1, ""));
-    var proWireless = registry.Describe(new HardwareDevice("pro-wireless", "Logitech G", "PRO WIRELESS", 0x046D, 0xC539,
+    var proWirelessDevice = new HardwareDevice("pro-wireless", "Logitech G", "PRO WIRELESS", 0x046D, 0xC539,
         "USB/HID", 1, "", ModelKey: "logitech-pro-wireless", Kind: DeviceKind.Mouse,
-        HidInterfaces: [new(0xFF00, 0x0002, 20, 20, 0)]));
+        HidInterfaces: [new(0xFF00, 0x0002, 20, 20, 0)]);
+    var proWireless = registry.Describe(proWirelessDevice);
     var xbox = registry.Describe(new HardwareDevice("xbox", "Microsoft", "Xbox controller", 0x045E, 0, "XInput", 0, "", 0));
     var yeti = registry.Describe(new HardwareDevice("yeti", "Blue Microphones", "Yeti Classic", 0xB58E, 0x9E84,
         "USB Audio", 0, "", ModelKey: "blue-yeti-classic", Kind: DeviceKind.Microphone));
@@ -125,6 +131,14 @@ static void CheckAdapterSelection()
     Assert(descriptorDetail.Contains("FF00/0002", StringComparison.Ordinal) &&
         descriptorDetail.Contains("no confirman funciones HID++", StringComparison.Ordinal),
         "la ficha Logitech incluye datos del descriptor sin afirmar compatibilidad HID++");
+    var dpiCard = new DeviceCardViewModel(proWirelessDevice, proWireless);
+    dpiCard.IsLogitechDpiStage3Selected = true;
+    dpiCard.SelectedLogitechDpiValue = 1450;
+    Assert(dpiCard.ActiveLogitechDpiStage == 3 && dpiCard.LocalProfile.ActiveDpiStage == 3 &&
+        dpiCard.LocalProfile.Dpi1 == 400 && dpiCard.LocalProfile.Dpi3 == 1450 && dpiCard.LogitechDpiStage3Value == 1450,
+        "el selector DPI cambia solo la etapa activa del perfil local");
+    dpiCard.SelectedLogitechDpiValue = 30000;
+    Assert(dpiCard.LocalProfile.Dpi3 == 25600, "el deslizador local mantiene el DPI dentro del rango del G PRO Wireless");
 }
 
 static void CheckLogitechHidppMessages()
@@ -186,9 +200,40 @@ static void CheckLogitechHidppMessages()
         LogitechHidppCapabilityReader.TryReadDeviceTypeResponse(typeResponse, deviceIndex, 3, softwareId, out var type) &&
         type == 3 && !LogitechHidppCapabilityReader.TryReadDeviceTypeResponse(typeResponse, deviceIndex, 4,
             softwareId, out _), "se consulta y valida GetDeviceType en la feature 0x0005");
-    var completeFeatures = new LogitechHidppSlotStatus(deviceIndex, 0x04, 0x05, true, true, true, true, 3);
+    var sensorCountRequest = LogitechHidppCapabilityReader.BuildGetSensorCountRequest(deviceIndex, 7, softwareId);
+    var sensorCountResponse = new byte[20];
+    sensorCountResponse[0] = 0x11;
+    sensorCountResponse[1] = deviceIndex;
+    sensorCountResponse[2] = 7;
+    sensorCountResponse[3] = softwareId;
+    sensorCountResponse[4] = 1;
+    var sensorDpiRequest = LogitechHidppCapabilityReader.BuildGetSensorDpiRequest(deviceIndex, 7, 0, softwareId);
+    var sensorDpiResponse = new byte[20];
+    sensorDpiResponse[0] = 0x11;
+    sensorDpiResponse[1] = deviceIndex;
+    sensorDpiResponse[2] = 7;
+    sensorDpiResponse[3] = 0x2A;
+    sensorDpiResponse[4] = 0;
+    sensorDpiResponse[5] = 0x05;
+    sensorDpiResponse[6] = 0x78;
+    sensorDpiResponse[7] = 0x03;
+    sensorDpiResponse[8] = 0xE8;
+    Assert(sensorCountRequest[2] == 7 && sensorCountRequest[3] == softwareId &&
+        LogitechHidppCapabilityReader.TryReadSensorCountResponse(sensorCountResponse, deviceIndex, 7, softwareId,
+            out var sensorCount) && sensorCount == 1 &&
+        sensorDpiRequest[2] == 7 && sensorDpiRequest[3] == 0x2A && sensorDpiRequest[4] == 0 &&
+        LogitechHidppCapabilityReader.TryReadSensorDpiResponse(sensorDpiResponse, deviceIndex, 7, 0, softwareId,
+            out var currentDpi, out var defaultDpi) && currentDpi == 1400 && defaultDpi == 1000 &&
+        !LogitechHidppCapabilityReader.TryReadSensorDpiResponse(sensorDpiResponse, deviceIndex, 7, 1, softwareId,
+            out _, out _), "se valida la lectura HID++ del conteo de sensores y DPI actual/default");
+    sensorDpiResponse[5] = sensorDpiResponse[6] = 0;
+    Assert(!LogitechHidppCapabilityReader.TryReadSensorDpiResponse(sensorDpiResponse, deviceIndex, 7, 0,
+        softwareId, out _, out _), "se rechaza un DPI actual fuera del rango de la feature");
+    var completeFeatures = new LogitechHidppSlotStatus(deviceIndex, 0x04, 0x05, true, true, true, false, true, 3);
     Assert(completeFeatures.HasRequiredFeatures &&
         (completeFeatures with { AdjustableReportRateFeatureIndex = 0 }).HasRequiredFeatures &&
+        (completeFeatures with { HasFeature2201 = false, HasFeature2202 = true }).HasRequiredFeatures &&
+        !(completeFeatures with { HasFeature2201 = false, HasFeature2202 = false }).HasRequiredFeatures &&
         !(completeFeatures with { ProtocolMajor = 0x8F }).HasRequiredFeatures &&
         !(completeFeatures with { HidppDeviceType = null }).HasRequiredFeatures,
         "el filtro requiere HID++ 2.0, las cuatro capacidades y una respuesta de tipo");

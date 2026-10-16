@@ -48,6 +48,7 @@ public sealed class LogitechHidppCapabilityReader
             if (protocol is null || !IsHidpp20ProtocolMajor(protocol.Value.Major)) continue;
 
             var features = new Dictionary<ushort, bool>();
+            byte? adjustableDpiFeatureIndex = null;
             var queryFailed = false;
             foreach (var feature in OmmGateFeatures)
             {
@@ -60,6 +61,7 @@ public sealed class LogitechHidppCapabilityReader
                     break;
                 }
                 features[feature] = featureIndex is > 0;
+                if (feature == 0x2201) adjustableDpiFeatureIndex = featureIndex;
             }
             if (queryFailed) continue;
 
@@ -69,11 +71,16 @@ public sealed class LogitechHidppCapabilityReader
             var reportRateFeatureIndex = hidppDeviceType == HidppMouseDeviceType
                 ? await ReadFeatureIndexAsync(stream, index, AdjustableReportRateFeatureId, cancellationToken)
                 : null;
+            var dpi = hidppDeviceType == HidppMouseDeviceType && adjustableDpiFeatureIndex is > 0
+                ? await ReadCurrentDpiAsync(stream, index, adjustableDpiFeatureIndex.Value, cancellationToken)
+                : null;
             slots.Add(new(index, protocol.Value.Major, protocol.Value.Minor,
                 features[0x0003], features[0x0005],
-                features[0x2201] || features[0x2202], features[0x8100], hidppDeviceType)
+                features[0x2201], features[0x2202], features[0x8100], hidppDeviceType)
             {
-                AdjustableReportRateFeatureIndex = reportRateFeatureIndex
+                AdjustableDpiFeatureIndex = adjustableDpiFeatureIndex,
+                AdjustableReportRateFeatureIndex = reportRateFeatureIndex,
+                CurrentDpi = dpi
             });
         }
 
@@ -152,6 +159,56 @@ public sealed class LogitechHidppCapabilityReader
         return true;
     }
 
+    public static byte[] BuildGetSensorCountRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = softwareId;
+        return report;
+    }
+
+    public static bool TryReadSensorCountResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId, out byte sensorCount)
+    {
+        sensorCount = 0;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != softwareId) return false;
+        sensorCount = response[4];
+        return true;
+    }
+
+    public static byte[] BuildGetSensorDpiRequest(byte deviceIndex, byte featureIndex, byte sensorIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x20 | softwareId);
+        report[4] = sensorIndex;
+        return report;
+    }
+
+    public static bool TryReadSensorDpiResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte sensorIndex, byte softwareId,
+        out int currentDpi, out int? defaultDpi)
+    {
+        currentDpi = 0;
+        defaultDpi = null;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != (byte)(0x20 | softwareId) || response[4] != sensorIndex) return false;
+        currentDpi = (response[5] << 8) | response[6];
+        var defaultValue = (response[7] << 8) | response[8];
+        if (currentDpi is < 1 or > 57343) return false;
+        defaultDpi = defaultValue is >= 1 and <= 57343 ? defaultValue : null;
+        return true;
+    }
+
     private static async Task<byte?> ReadFeatureIndexAsync(
         FileStream stream, byte deviceIndex, ushort featureId, CancellationToken cancellationToken)
     {
@@ -183,6 +240,25 @@ public sealed class LogitechHidppCapabilityReader
             out var deviceType) ? deviceType : null;
     }
 
+    private static async Task<LogitechDpiReading?> ReadCurrentDpiAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, CancellationToken cancellationToken)
+    {
+        var countRequest = BuildGetSensorCountRequest(deviceIndex, featureIndex, SoftwareId);
+        await stream.WriteAsync(countRequest, cancellationToken);
+        var countResponse = await ReadResponseAsync(stream, deviceIndex, featureIndex, countRequest[3], cancellationToken);
+        if (countResponse is null || !TryReadSensorCountResponse(countResponse, deviceIndex, featureIndex,
+            SoftwareId, out var sensorCount) || sensorCount == 0) return null;
+
+        const byte sensorIndex = 0;
+        var dpiRequest = BuildGetSensorDpiRequest(deviceIndex, featureIndex, sensorIndex, SoftwareId);
+        await stream.WriteAsync(dpiRequest, cancellationToken);
+        var dpiResponse = await ReadResponseAsync(stream, deviceIndex, featureIndex, dpiRequest[3], cancellationToken);
+        return dpiResponse is not null && TryReadSensorDpiResponse(dpiResponse, deviceIndex, featureIndex,
+            sensorIndex, SoftwareId, out var currentDpi, out var defaultDpi)
+            ? new(sensorIndex, sensorCount, currentDpi, defaultDpi)
+            : null;
+    }
+
     private static async Task<byte[]?> ReadResponseAsync(
         FileStream stream, byte deviceIndex, byte featureIndex, byte functionAndSoftwareId,
         CancellationToken cancellationToken)
@@ -212,12 +288,19 @@ public sealed record LogitechHidppSlotStatus(
     byte ProtocolMinor,
     bool HasDeviceInformation,
     bool HasDeviceNameAndType,
-    bool HasAdjustableDpi,
+    bool HasFeature2201,
+    bool HasFeature2202,
     bool HasOnboardProfiles,
     byte? HidppDeviceType)
 {
+    public byte? AdjustableDpiFeatureIndex { get; init; }
     public byte? AdjustableReportRateFeatureIndex { get; init; }
+    public LogitechDpiReading? CurrentDpi { get; init; }
+
+    public bool HasAdjustableDpi => HasFeature2201 || HasFeature2202;
 
     public bool HasRequiredFeatures => LogitechHidppCapabilityReader.IsHidpp20ProtocolMajor(ProtocolMajor) && HidppDeviceType is not null && HasDeviceInformation &&
         HasDeviceNameAndType && HasAdjustableDpi && HasOnboardProfiles;
 }
+
+public sealed record LogitechDpiReading(byte SensorIndex, byte SensorCount, int CurrentDpi, int? DefaultDpi);

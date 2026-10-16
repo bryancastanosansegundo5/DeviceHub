@@ -6,7 +6,7 @@ Fecha: 16 de octubre de 2026.
 
 - Programa: **Nexo Device Hub**, aplicación de escritorio WPF sobre .NET 10.
 - Objetivo de esta etapa: continuar el soporte del Logitech G PRO Wireless y estudiar la integración segura de las funciones de Onboard Memory Manager (OMM).
-- Trabajo en el worktree aislado `C:\Users\bcastano\.codex\worktrees\logitech-rea-ui\DeviceHub`, iniciado desde `main` en `f261cdf`. La integración final de esta iteración irá a `main`; el checkout original se mantiene libre durante el desarrollo.
+- Trabajo en el worktree aislado `C:\Users\bcastano\.codex\worktrees\logitech-rea-ui\DeviceHub`, actualizado con `origin/main` en `21df94b` (se creó originalmente desde `f261cdf`). La integración final de esta iteración irá a `main`; el checkout original se mantiene libre durante el desarrollo.
 
 ## Archivos tocados
 
@@ -16,23 +16,24 @@ La huella acumulada es `(líneas añadidas + eliminadas frente a d621167) / lín
 |---|---:|---|
 | `AGENTS.md` | **6,2 %** | Registra la consulta manual HID++ del C539 y sus límites. |
 | `Adapters/DeviceAdapterRegistry.cs` | **34,2 %** | Muestra PRO WIRELESS con identidad reconocida y estado prudente de la consulta OMM. |
-| `MainWindow.xaml` | **11,1 %** | Presenta DPI/polling como perfil local e incorpora el botón manual HID++ solo para PRO WIRELESS. |
+| `MainWindow.xaml` | **17,3 %** | Presenta etapas DPI seleccionables y un deslizador de perfil local, además de polling y consulta manual HID++ para PRO WIRELESS. |
 | `MainWindow.xaml.cs` | **0,8 %** | Conecta el botón de lectura HID++ con el ViewModel. |
-| `Services/DeviceLocalProfileLibrary.cs` | **26,8 %** | Valida cuatro etapas de 100 a 25.600 DPI y polling de 125/250/500/1000 Hz para perfiles Logitech. |
+| `Models/DeviceLocalProfile.cs` | **4,2 %** | Conserva la etapa DPI local seleccionada. |
+| `Services/DeviceLocalProfileLibrary.cs` | **29,3 %** | Valida cuatro etapas de 100 a 25.600 DPI, la etapa activa y polling de 125/250/500/1000 Hz para perfiles Logitech. |
 | `Services/HidDeviceEnumerator.cs` | **22,1 %** | Reconoce C539 por nombre PnP y lee descriptor HID sin enviar reportes. |
-| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Lee manualmente versión, features OMM, tipo HID++ bruto y presencia de 0x8060 en ranuras de ratón 1–6. |
+| `Services/LogitechHidppCapabilityReader.cs` | **100 %** | Lee manualmente versión, features OMM, tipo HID++ bruto, DPI actual si 0x2201 está anunciado y presencia de 0x8060 en ranuras de ratón 1–6. |
 | `Models/HardwareDevice.cs` | **31,0 %** | Añade metadatos de las colecciones HID al inventario tipado del dispositivo. |
-| `ViewModels/DeviceCardViewModel.cs` | **14,5 %** | Adapta la ficha al ratón exacto y actualiza el estado HID++ observado. |
-| `ViewModels/MainViewModel.cs` | **41,3 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas, evita solaparla con el refresco y presenta el estado de 0x8060. |
-| `checks/NexoHub.Checks/Program.cs` | **100,9 %** | Comprueba el framing HID++, filtro de versión, respuesta de tipo, eco ping, respuesta índice cero y presencia de 0x8060. |
-| `docs/device-inventory-analysis.md` | **144,8 %** | Registra los límites REA de G HUB, el filtro OMM, wrappers DPI/perfiles/polling y el alcance de 0x8060. |
+| `ViewModels/DeviceCardViewModel.cs` | **76,4 %** | Adapta la ficha C539, cambia de etapa DPI local y actualiza propiedades para la interfaz. |
+| `ViewModels/MainViewModel.cs` | **43,9 %** | Ejecuta la consulta manual, conserva resultados entre búsquedas y muestra features, DPI actual leído y estado de 0x8060. |
+| `checks/NexoHub.Checks/Program.cs` | **140,4 %** | Comprueba framing HID++, filtro de versión/tipo, eco ping, índice cero, features DPI, lectura de sensor y edición local de etapa/valor. |
+| `docs/device-inventory-analysis.md` | **189,7 %** | Registra límites REA de G HUB, filtro OMM, wrappers DPI/perfiles/polling y los resultados de búsqueda selectiva. |
 | `README.md` | **3,5 %** | Corrige el modelo Logitech mostrado y aclara que DPI/polling todavía se guardan solo en Nexo. |
 | `dist/LEEME.md` | **18,2 %** | Corrige el nombre del ratón y el estado local de la función en las notas del paquete. |
 | `AVANCES/APLICACION.md` | **100 %** | Mantiene este registro de cambios, evidencias y trabajo pendiente. |
 
 ## Estado funcional actual
 
-La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling y guardar esos valores en un JSON del PC. La consulta HID++ manual ahora también pregunta si la feature pública `0x8060` está anunciada cuando el tipo bruto es mouse `0x03`; no lee la tasa configurada. Una consulta de solo lectura anterior al C539 respondió en la ranura 1 con HID++ 4.2 y las features `0x0003`, `0x0005`, `0x8100` y al menos una entre `0x2201`/`0x2202`; `GetDeviceType` devolvió `0x03`. La especificación publicada enumera Mouse como tipo HID++ `3`; OMM usa internamente `BaseDeviceType.MOUSE=2` y no se ha probado que la DLL los traduzca de esa manera. No se confirma aceptación OMM. No se aplican DPI/polling ni se escriben perfiles de memoria integrada.
+La ficha del Logitech G PRO Wireless permite seleccionar una de cuatro etapas, editar su valor con un deslizador y configurar polling; los cambios se guardan como perfil local en el PC. La consulta HID++ manual pregunta si la feature pública `0x8060` está anunciada cuando el tipo bruto es mouse `0x03` y, si `0x2201` está disponible, lee el DPI actual/default del sensor 0. No cambia polling ni DPI. Una consulta de solo lectura anterior al C539 respondió en la ranura 1 con HID++ 4.2 y las features `0x0003`, `0x0005`, `0x8100` y al menos una entre `0x2201`/`0x2202`; `GetDeviceType` devolvió `0x03`. La especificación publicada enumera Mouse como tipo HID++ `3`; OMM usa internamente `BaseDeviceType.MOUSE=2` y no se ha probado que la DLL los traduzca de esa manera. No se confirma aceptación OMM. No se escriben perfiles de memoria integrada.
 
 **La etapa Logitech no está terminada.** La consulta HID++ real confirma transporte y features en la ranura 1, pero no el filtro completo de compatibilidad OMM. No se han probado escrituras, lectura de vuelta de ajustes ni persistencia tras reconexión.
 
@@ -55,7 +56,7 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 - El análisis conjunto de `main.js` y `preload.bundle.js` sí parseó ambos archivos y observó 8 APIs de `contextBridge`, 29 canales literales, 82 operaciones IPC dinámicas, 58 envíos del renderer y 29 manejadores del proceso principal. No emparejó envíos con manejadores; la gráfica semántica quedó parcial y no se analizaron los 8 archivos restantes. Evidencia: `ev_688043e39d04ca82834daf76bcb6bddd99752834c204b75b573636d45be90d68`.
 - En esta continuación, REA aisló `858.min.js` (600.102 bytes): parseó 142.448 nodos AST, pero la gráfica semántica quedó parcial y el chunk no ofrece la pantalla completa de configuración. Evidencias: análisis `ev_4a4b4925695c097d98726df6a71fed36607f4d39f3a1f150b4c787aac33bfb82` y resumen `ev_1d3607d26f3512ed29dc5715c2200e08530a84e53f45f9ef8a2e7e3217c247fa`.
 - Un nuevo intento aislado sobre `app.min.js` con 1.024 MB y límite de 30 s leyó el bundle, pero terminó antes del parseo (0 JS, 0 nodos AST, 0 módulos). Evidencia `ev_93444bdb381a1f0b8e70688f0c5d86410e04e76421de86aa589e881bd3872187`. No se elevó el límite porque el intento anterior tampoco logró parsearlo.
-- **Paridad de interfaz no alcanzada.** La comparación del código Nexo con la captura solo cubre la pantalla DPI: Nexo edita cuatro valores fijos y polling en un perfil local. No tiene el deslizador con etapa activa, gestión de etapas, asignación de cambio DPI a botones, restablecimiento ni selector de perfil de G HUB; tampoco aplica DPI/polling al hardware.
+- **Paridad de interfaz no alcanzada.** Nexo ya permite elegir etapa y editar su valor con un deslizador, pero ambos cambian solo el perfil local. Siguen pendientes perfiles múltiples, asignación de cambio DPI a botones, restablecimiento de G HUB y aplicación al hardware.
 
 ### OMM
 
@@ -121,3 +122,21 @@ La ficha del Logitech G PRO Wireless permite editar cuatro niveles DPI y polling
 - G HUB sigue sin ingeniería inversa completa y no hay paridad total con su interfaz. Evité repetir el parseo del `app.min.js` de 7,37 MB porque los intentos previos agotaron memoria antes de parsear; los resultados obtenidos hasta ahora son parciales.
 - Archivos tocados en esta actualización: `docs/device-inventory-analysis.md` (**144,8 %** de huella acumulada) y `AVANCES/APLICACION.md` (**100 %**, archivo creado desde la base). No se modificó código ni se consultó el ratón.
 - Al ser solo documentación, no se repitieron build ni checks; `git diff --check` se ejecutó correctamente antes de registrar este avance.
+
+## Continuación REA y diagnóstico DPI · 16 de octubre de 2026
+
+- REA inspeccionó otra vez OMM y su DLL mixta: confirmó los wrappers de `Feature2201`/`Feature2202`, el getter de tipo que cruza a `NativeFeature` y la frontera de 802 implementaciones nativas no recuperadas. El enum de OMM sigue sin poder compararse con el byte `0x03` leído por HID++; no afirmamos compatibilidad completa ni implementamos getters DPI sin framing conocido. Evidencias `ev_4a037698c38d5924fd8262967cb6167056eba7151e5de8a8fada4c268b54a764`, `ev_3bf203c95e98c246c325bbdb3c0bb75d34137ccb5d03ff7af28ba2f1288cc851` y `ev_8d5b71daf6aa208ff9974e6bd58eb077c47488dba6f86bfeb432c15d026de101`.
+- En G HUB, REA aisló `dpi-tester.min.js` y su mapa con 192 MiB: el tester lee la etapa DPI activa y la pasa al minijuego, pero no configura el ratón (`ev_f6ad8e08cff0dc7638b8a3d82a73c3a3697285d0f38c51e37e490c23eb8533de`). La extracción íntegra del ASAR no encontró discrepancias (`ev_16a7a37728ee77c51380034ea2dc81ec2ad64c4c236dcd55d2f9563b9bc258f4`). Una búsqueda literal de bajo coste sobre `app.min.js` con hash `d95f649c2eddd640f3295afc1af46dbf0cee0a9a4da9f2faf9675f64e3821e49` encontró la tabla DPI y acciones de polling; la conexión entre esa UI, el canal IPC y los reportes para C539 sigue sin probarse.
+- Cambios de esta iteración: el lector mantiene `0x2201` y `0x2202` separados, la ficha enseña ambos estados y el filtro conserva la regla verificada de OMM (cualquiera de los dos). También se actualizan este registro y `docs/device-inventory-analysis.md`.
+- Huella acumulada desde `d621167`: `Services/LogitechHidppCapabilityReader.cs` (100 %, archivo nuevo desde la base), `ViewModels/MainViewModel.cs` (41,3 %), `checks/NexoHub.Checks/Program.cs` (102,6 %), `docs/device-inventory-analysis.md` (158,6 %) y `AVANCES/APLICACION.md` (100 %, archivo nuevo desde la base). El porcentaje representa cambios de líneas, no cobertura funcional.
+- Validación pendiente en el cierre de esta iteración: build Release, 7 grupos de checks y `git diff --check`. No se consultó el ratón ni se ejecutó G HUB u OMM durante esta continuación.
+- La ingeniería inversa de G HUB no está completa y su interfaz no tiene paridad total con Nexo. Siguiente paso: acotar por búsqueda de offsets la llamada de polling/DPI y contrastarla con IPC, sin repetir el parseo de 7,37 MB que ya agotó el límite de memoria.
+
+## Continuación REA y lectura DPI · 16 de octubre de 2026
+
+- REA y las lecturas acotadas del `app.min.js` con hash `d95f649c2eddd640f3295afc1af46dbf0cee0a9a4da9f2faf9675f64e3821e49` localizan el panel DPI: cada etapa pasa `activeDpi` y `defaultDpi` a `updateMouseSettingsWrapper`. El componente también usa acciones `assignDPI` y `restoreDefaults`. El bundle principal sigue sin poder parsearse completo y el puente del panel a IPC/backend no está probado.
+- La vista REA de `main.js` y `preload.bundle.js` encontró 58 envíos de renderer, 29 manejadores y 82 canales dinámicos en dos fuentes; no emparejó envíos con manejadores. La cobertura sigue parcial, con 41.396 incógnitas semánticas y 8 archivos no analizados.
+- OMM ofrece getters `Feature2201.GetSensorCount` y `GetSensorDPI`; Nexo los usa ahora solo desde la acción manual HID++ y solo para ranuras de ratón que anuncian `0x2201`. La salida puede incluir DPI actual/default; no se manda ningún setter ni se modifica la memoria del periférico.
+- Se añadió el selector de etapa activa y el deslizador DPI local inspirado en la captura. El perfil guarda la etapa activa, y las comprobaciones verifican que solo cambie la etapa seleccionada y que se respeten los límites. Sigue siendo edición local.
+- Huella acumulada frente a `d621167`: `MainWindow.xaml` **17,3 %**; `Models/DeviceLocalProfile.cs` **4,2 %**; `Services/DeviceLocalProfileLibrary.cs` **29,3 %**; `Services/LogitechHidppCapabilityReader.cs` **100 %** (archivo nuevo); `ViewModels/DeviceCardViewModel.cs` **76,4 %**; `ViewModels/MainViewModel.cs` **43,9 %**; `checks/NexoHub.Checks/Program.cs` **140,4 %**; `docs/device-inventory-analysis.md` **189,7 %**; este registro **100 %** (nuevo). El porcentaje mide líneas cambiadas, no funciones terminadas.
+- Validación: build Release correcto, 0 errores y 0 advertencias; los 7 grupos de `NexoHub.Checks` pasaron. Un harness temporal hizo una sola lectura real: ranura 1, HID++ 4.2, feature `0x2201` en índice `0x0C`, un sensor, 1400 DPI actuales/800 predeterminados. No se abrió G HUB/OMM ni se envió ninguna escritura HID. Faltan compatibilidad OMM confirmada, paridad de UI y cualquier escritura que demuestre lectura posterior y persistencia.
