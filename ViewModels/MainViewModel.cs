@@ -49,6 +49,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasNoDevices));
             OnPropertyChanged(nameof(CanProbeLogitech));
             OnPropertyChanged(nameof(CanApplyLogitechDpi));
+            OnPropertyChanged(nameof(CanSaveLogitechOnboardDpi));
             OnPropertyChanged(nameof(CanIdentifyLogitech));
         }
     }
@@ -57,6 +58,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool HasNoDevices => Devices.Count == 0;
     public bool CanProbeLogitech => SelectedDevice?.IsLogitechDpiWritable == true && !IsScanning && !IsProbingLogitech;
     public bool CanApplyLogitechDpi => SelectedDevice?.IsLogitechDpiWritable == true && !IsScanning && !IsProbingLogitech;
+    public bool CanSaveLogitechOnboardDpi => SelectedDevice?.IsLogitechProXSuperlight == true && !IsScanning && !IsProbingLogitech;
     public bool CanIdentifyLogitech => SelectedDevice?.IsLogitechHidppCandidate == true && !IsScanning && !IsProbingLogitech;
     public bool HasAuxiliaryDevices => AuxiliaryCount > 0;
     public int AuxiliaryCount => _allDevices.Count(device => device.Device.IsAuxiliary);
@@ -111,6 +113,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanProbeLogitech));
             OnPropertyChanged(nameof(CanApplyLogitechDpi));
+            OnPropertyChanged(nameof(CanSaveLogitechOnboardDpi));
             OnPropertyChanged(nameof(CanIdentifyLogitech));
         }
     }
@@ -125,6 +128,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanProbeLogitech));
             OnPropertyChanged(nameof(CanApplyLogitechDpi));
+            OnPropertyChanged(nameof(CanSaveLogitechOnboardDpi));
             OnPropertyChanged(nameof(CanIdentifyLogitech));
         }
     }
@@ -283,6 +287,48 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (Exception exception)
         {
             ConfigurationStatus = $"No se pudo confirmar el cambio de DPI: {exception.Message}";
+        }
+        finally
+        {
+            IsProbingLogitech = false;
+        }
+    }
+
+    public async Task SaveLogitechOnboardDpiAsync()
+    {
+        var card = SelectedDevice;
+        if (card?.IsLogitechProXSuperlight != true || !CanSaveLogitechOnboardDpi) return;
+
+        var stageCount = card.LocalProfile.DpiStageCount;
+        var stages = new[]
+        {
+            card.LocalProfile.Dpi1, card.LocalProfile.Dpi2, card.LocalProfile.Dpi3,
+            card.LocalProfile.Dpi4, card.LocalProfile.Dpi5
+        }.Take(stageCount).ToArray();
+        var defaultIndex = (byte)(Math.Clamp(card.ActiveLogitechDpiStage, 1, stageCount) - 1);
+        var activeDpi = stages[defaultIndex];
+
+        IsProbingLogitech = true;
+        ConfigurationStatus = "Guardando las etapas en la memoria del ratón…";
+        try
+        {
+            var saved = await _logitechHidpp.SaveOnboardDpiStagesAsync(card.Device, stages, defaultIndex);
+            var mode = saved.OnboardMode ? "perfil integrado" : "memoria del perfil (modo G HUB)";
+            try
+            {
+                var applied = await _logitechHidpp.SetCurrentDpiAsync(card.Device, activeDpi);
+                ConfigurationStatus = saved.Changed
+                    ? $"{card.DisplayName}: etapas guardadas y leídas de vuelta en el {mode} (ranura {saved.Sector}). {applied:N0} DPI aplicado al sensor."
+                    : $"{card.DisplayName}: las etapas ya estaban guardadas en la ranura {saved.Sector}. {applied:N0} DPI aplicado al sensor.";
+            }
+            catch (Exception exception)
+            {
+                ConfigurationStatus = $"Etapas guardadas y verificadas en la ranura {saved.Sector}, pero no se pudo aplicar {activeDpi:N0} DPI al sensor: {exception.Message}";
+            }
+        }
+        catch (Exception exception)
+        {
+            ConfigurationStatus = $"No se pudieron guardar los DPI en el ratón: {exception.Message}";
         }
         finally
         {

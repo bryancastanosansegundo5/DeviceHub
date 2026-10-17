@@ -82,6 +82,55 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
+        <Style x:Key="DeviceCardButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+            <Setter Property="Background" Value="{StaticResource Panel}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardSurface" Background="{TemplateBinding Background}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="16" RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="CardScale" />
+                            </Border.RenderTransform>
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardSurface" Property="BorderBrush" Value="{StaticResource Signal}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleX" To="1.025" Duration="0:0:0.14" />
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleY" To="1.025" Duration="0:0:0.14" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.14" />
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.14" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="CardSurface" Property="BorderBrush" Value="{StaticResource Signal}" />
+                                <Setter TargetName="CardSurface" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="CardSurface" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="LogitechDpiStageButton" TargetType="RadioButton">
             <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
             <Setter Property="Padding" Value="9,8" />
@@ -298,10 +347,12 @@
                 </Grid.RowDefinitions>
                 <Grid Grid.Row="0">
                     <StackPanel>
-                        <TextBlock Text="Tus dispositivos" FontSize="29" FontWeight="Bold" />
-                        <TextBlock Text="Una vista para el equipo que usas." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
+                        <TextBlock x:Name="DevicesPageTitle" Text="Tus dispositivos" FontSize="29" FontWeight="Bold" />
+                        <TextBlock x:Name="DevicesPageSubtitle" Text="Una vista para el equipo que usas." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="BackToDevicesButton" Content="‹ Todos los dispositivos" Click="ShowDeviceCards"
+                                Style="{StaticResource QuietButton}" Margin="0,0,12,0" Visibility="Collapsed" />
                         <TextBlock Text="●" Foreground="{StaticResource Signal}" VerticalAlignment="Center" FontSize="11" />
                         <TextBlock Text="  USB · Bluetooth · audio Windows" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" FontSize="12" Margin="0,0,14,0" />
                         <Button Content="Buscar ahora" Click="RefreshDevices" Style="{StaticResource QuietButton}" />
@@ -309,6 +360,68 @@
                 </Grid>
 
                 <Grid Grid.Row="2">
+                    <Grid x:Name="DeviceCardsView">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="12" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Margin="4,0,4,0">
+                            <TextBlock Text="{Binding ScanStatus}" Foreground="{StaticResource TextMuted}" FontSize="12" VerticalAlignment="Center" />
+                            <Button Content="{Binding AuxiliaryButtonLabel}" Click="ToggleAuxiliary" Style="{StaticResource QuietButton}"
+                                    Padding="10,7" HorizontalAlignment="Right"
+                                    Visibility="{Binding HasAuxiliaryDevices, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <Grid>
+                                <ItemsControl ItemsSource="{Binding Devices}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource DeviceCardButton}" Click="OpenDeviceSettings" Tag="{Binding}"
+                                                    Width="280" Height="360" Margin="0,0,16,16"
+                                                    AutomationProperties.Name="{Binding DisplayName}"
+                                                    AutomationProperties.HelpText="Abre los ajustes de este dispositivo.">
+                                                <Grid Margin="18">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="*" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="19" FontWeight="Bold" TextWrapping="Wrap" />
+                                                    <TextBlock Grid.Row="1" Text="{Binding Brand}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" Margin="0,4,0,0" />
+                                                    <controls:DeviceIllustration Grid.Row="2" Width="190" Height="165" Kind="{Binding VisualKind}"
+                                                                                 Accent="{StaticResource Signal}" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,4,0,14">
+                                                        <TextBlock Text="{Binding Status}" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center" />
+                                                        <Border Background="#24343D" CornerRadius="7" Padding="8,5" Margin="10,0,0,0">
+                                                            <TextBlock Text="{Binding Transport}" FontSize="10" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <Grid Grid.Row="4">
+                                                        <TextBlock Text="Configuración del dispositivo" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Abrir ajustes  →" Foreground="{StaticResource Signal}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="300"
+                                            Visibility="{Binding HasNoDevices, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Conecta un dispositivo para empezar" FontSize="19" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
+                                    <TextBlock Text="Nexo detectará lo que conectes y mostrará los ajustes disponibles." Foreground="{StaticResource TextMuted}"
+                                               TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <Grid x:Name="DeviceSettingsView" Visibility="Collapsed" Opacity="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="300" />
                         <ColumnDefinition Width="18" />
@@ -485,7 +598,7 @@
                                                             <Border Grid.Column="1" Background="#202326" CornerRadius="8" Padding="9,6" Margin="8,0,0,0">
                                                                 <StackPanel>
                                                                     <TextBlock Text="MEMORIA INTEGRADA" Foreground="{StaticResource TextMuted}" FontSize="8" FontWeight="Bold" />
-                                                                    <TextBlock Text="Pendiente de validar" Foreground="#F5C400" FontSize="10" FontWeight="SemiBold" Margin="0,2,0,0" />
+                                                                    <TextBlock Text="Se confirma al guardar" Foreground="#F5C400" FontSize="10" FontWeight="SemiBold" Margin="0,2,0,0" />
                                                                 </StackPanel>
                                                             </Border>
                                                         </Grid>
@@ -493,6 +606,11 @@
                                                             <Button Content="Aplicar DPI seleccionado al ratón" Click="ApplyLogitechDpi" IsEnabled="{Binding CanApplyLogitechDpi}" Style="{StaticResource ActionButton}" Padding="11,7" />
                                                             <TextBlock Text="Cambio del sensor actual · lectura de vuelta · no guarda etapas" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
                                                         </StackPanel>
+                                                        <Button Content="Guardar etapas y aplicar DPI activo" Click="SaveLogitechOnboardDpi"
+                                                                IsEnabled="{Binding DataContext.CanSaveLogitechOnboardDpi, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                Visibility="{Binding SelectedDevice.IsLogitechProXSuperlight, Converter={StaticResource BoolToVisibility}}"
+                                                                Style="{StaticResource ActionButton}" Padding="11,7" Margin="0,8,0,0"
+                                                                AutomationProperties.HelpText="Guarda las etapas en la memoria del ratón, comprueba la lectura y aplica el DPI de la etapa activa." />
                                                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
                                                             <Button Content="Consultar HID++" Click="ReadLogitechCapabilities" IsEnabled="{Binding DataContext.CanProbeLogitech, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource QuietButton}" Padding="10,7" />
                                                             <TextBlock Text="Solo lectura · no modifica ajustes" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
@@ -741,6 +859,7 @@
                           </StackPanel>
                         </Grid>
                     </Border>
+                    </Grid>
                 </Grid>
             </Grid>
 

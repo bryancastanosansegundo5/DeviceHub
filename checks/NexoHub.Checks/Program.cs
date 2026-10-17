@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text;
 using NexoHub.Adapters;
 using NexoHub.Models;
 using NexoHub.Services;
@@ -10,6 +11,11 @@ if (args is ["--probe-logitech"])
     await ProbeLogitechAsync();
     return;
 }
+if (args is ["--probe-logitech-profile-memory"])
+{
+    await ProbeLogitechProfileMemoryAsync();
+    return;
+}
 if (args is ["--probe-logitech-pairing"])
 {
     await ProbeLogitechPairingAsync();
@@ -18,6 +24,11 @@ if (args is ["--probe-logitech-pairing"])
 if (args is ["--test-logitech-dpi-roundtrip"])
 {
     await TestLogitechDpiRoundTripAsync();
+    return;
+}
+if (args is ["--save-logitech-onboard-dpi"])
+{
+    await SaveLogitechOnboardDpiAsync();
     return;
 }
 
@@ -381,6 +392,117 @@ static void CheckLogitechHidppMessages()
     Assert(!LogitechHidppCapabilityReader.TryReadFeatureIndex(featureResponse, deviceIndex, softwareId, out _),
         "se rechaza una respuesta de función distinta");
 
+    var onboardInfoRequest = LogitechHidppCapabilityReader.BuildGetOnboardProfilesInfoRequest(
+        deviceIndex, 7, softwareId);
+    var onboardInfoResponse = new byte[20];
+    onboardInfoResponse[0] = 0x11;
+    onboardInfoResponse[1] = deviceIndex;
+    onboardInfoResponse[2] = 7;
+    onboardInfoResponse[3] = softwareId;
+    onboardInfoResponse[4] = 1;
+    onboardInfoResponse[5] = 4;
+    onboardInfoResponse[7] = 5;
+    onboardInfoResponse[9] = 6;
+    onboardInfoResponse[10] = 16;
+    onboardInfoResponse[12] = 0xFF;
+    Array.Fill(onboardInfoResponse, (byte)0xFF, 15, 5);
+    Assert(onboardInfoRequest.Take(5).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, softwareId, 0 }) &&
+        onboardInfoRequest.Skip(5).All(value => value == 0) &&
+        LogitechHidppCapabilityReader.TryReadOnboardProfilesInfoResponse(onboardInfoResponse, deviceIndex, 7,
+            softwareId, out var onboardInfo) && onboardInfo is
+            { MemoryModelId: 1, ProfileFormatId: 4, ProfileCount: 5, ButtonCount: 6, SectorCount: 16, SectorSize: 255 } &&
+        onboardInfo.Reserved.Count == 5 && onboardInfo.Reserved.All(value => value == 0xFF),
+        "se consulta y decodifica la información de perfiles integrados 0x8100 en una lectura de solo consulta");
+    onboardInfoResponse[1]++;
+    Assert(!LogitechHidppCapabilityReader.TryReadOnboardProfilesInfoResponse(onboardInfoResponse, deviceIndex, 7,
+        softwareId, out _), "se rechaza una descripción de memoria integrada perteneciente a otra ranura");
+
+    var memoryReadRequest = LogitechHidppCapabilityReader.BuildReadOnboardProfileMemoryRequest(
+        deviceIndex, 7, 2, 0x00EF, softwareId);
+    var memoryReadResponse = new byte[20];
+    memoryReadResponse[0] = 0x11;
+    memoryReadResponse[1] = deviceIndex;
+    memoryReadResponse[2] = 7;
+    memoryReadResponse[3] = 0x5A;
+    for (var index = 4; index < memoryReadResponse.Length; index++) memoryReadResponse[index] = (byte)index;
+    Assert(memoryReadRequest.Take(8).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x5A, 0, 2, 0, 0xEF }) &&
+        LogitechHidppCapabilityReader.TryReadOnboardProfileMemoryResponse(memoryReadResponse, deviceIndex, 7,
+            softwareId, out var chunk) && chunk.Length == 16 && chunk[0] == 4 && chunk[^1] == 19,
+        "la lectura de perfil 0x8100 usa el sector y offset big-endian y devuelve 16 bytes");
+    var currentProfileRequest = LogitechHidppCapabilityReader.BuildGetCurrentOnboardProfileRequest(
+        deviceIndex, 7, softwareId);
+    memoryReadResponse[3] = 0x4A;
+    memoryReadResponse[4] = 0;
+    memoryReadResponse[5] = 3;
+    Assert(currentProfileRequest.Take(4).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x4A }) &&
+        LogitechHidppCapabilityReader.TryReadCurrentOnboardProfileResponse(memoryReadResponse, deviceIndex, 7,
+            softwareId, out var activeProfile) && activeProfile == 3,
+        "se identifica el perfil activo mediante la función 0x40 de 0x8100");
+
+    var profileModeRequest = LogitechHidppCapabilityReader.BuildGetOnboardProfileModeRequest(
+        deviceIndex, 7, softwareId);
+    var profileModeResponse = memoryReadResponse.ToArray();
+    profileModeResponse[3] = 0x2A;
+    profileModeResponse[4] = 0x01;
+    Assert(profileModeRequest.Take(4).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x2A }) &&
+        LogitechHidppCapabilityReader.TryReadOnboardProfileModeResponse(profileModeResponse, deviceIndex, 7,
+            softwareId, out var profileMode) && profileMode == 0x01 &&
+        !LogitechHidppCapabilityReader.TryReadOnboardProfileModeResponse(
+            profileModeResponse, deviceIndex, 7, (byte)(softwareId + 1), out _),
+        "se comprueba el modo integrado antes de consultar el perfil activo");
+
+    var directorySector = Enumerable.Repeat((byte)0xFF, 255).ToArray();
+    for (var index = 0; index < 5; index++)
+    {
+        directorySector[index * 4] = 0;
+        directorySector[index * 4 + 1] = (byte)(index + 1);
+        directorySector[index * 4 + 2] = 0;
+    }
+    directorySector[2] = 1;
+    var directoryChecksum = LogitechHidppCapabilityReader.ComputeOnboardProfileChecksum(directorySector);
+    directorySector[^2] = (byte)(directoryChecksum >> 8);
+    directorySector[^1] = (byte)directoryChecksum;
+    var profileSector = Enumerable.Repeat((byte)0xFF, 255).ToArray();
+    profileSector[1] = 1;
+    var stagesExpected = new int?[] { 400, 800, 1600, 3200, 6400 };
+    for (var index = 0; index < stagesExpected.Length; index++)
+    {
+        profileSector[3 + index * 2] = (byte)stagesExpected[index]!.Value;
+        profileSector[4 + index * 2] = (byte)(stagesExpected[index]!.Value >> 8);
+    }
+    var profileChecksum = LogitechHidppCapabilityReader.ComputeOnboardProfileChecksum(profileSector);
+    profileSector[^2] = (byte)(profileChecksum >> 8);
+    profileSector[^1] = (byte)profileChecksum;
+    var crcVector = Encoding.ASCII.GetBytes("123456789\0\0");
+    Assert(LogitechHidppCapabilityReader.ComputeOnboardProfileChecksum(crcVector) == 0x29B1 &&
+        LogitechHidppCapabilityReader.TryReadOnboardProfileDirectory(directorySector, 16, 5, out var directoryEntries) &&
+        directoryEntries.Count == 5 && directoryEntries.Single(entry => entry.IsEnabled).Sector == 1 &&
+        LogitechHidppCapabilityReader.TryReadFormat4DpiTable(profileSector, out var defaultDpiIndex,
+            out var storedStages) && defaultDpiIndex == 1 && storedStages.SequenceEqual(stagesExpected),
+        "se comprueba el checksum, el directorio de perfiles y las cinco etapas DPI little-endian de formato 4");
+
+    profileSector[30] = 0x42;
+    var checksumAfterSentinel = LogitechHidppCapabilityReader.ComputeOnboardProfileChecksum(profileSector);
+    profileSector[^2] = (byte)(checksumAfterSentinel >> 8);
+    profileSector[^1] = (byte)checksumAfterSentinel;
+    var updatedProfile = LogitechHidppCapabilityReader.BuildFormat4DpiProfile(
+        profileSector, [400, 800, 1300, 2000], 2);
+    var startWrite = LogitechHidppCapabilityReader.BuildStartOnboardProfileWriteRequest(
+        deviceIndex, 7, 1, 255, softwareId);
+    var writeChunk = Enumerable.Range(0, 16).Select(value => (byte)value).ToArray();
+    var writeData = LogitechHidppCapabilityReader.BuildOnboardProfileWriteDataRequest(
+        deviceIndex, 7, writeChunk, softwareId);
+    var endWrite = LogitechHidppCapabilityReader.BuildEndOnboardProfileWriteRequest(deviceIndex, 7, softwareId);
+    Assert(LogitechHidppCapabilityReader.TryReadFormat4DpiTable(updatedProfile, out var updatedDefault,
+            out var updatedStages) && updatedDefault == 2 &&
+        updatedStages.Select(value => value ?? -1).SequenceEqual(new[] { 400, 800, 1300, 2000, -1 }) &&
+        updatedProfile[30] == 0x42 &&
+        startWrite.Take(10).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x6A, 0, 1, 0, 0, 0, 255 }) &&
+        writeData.Take(20).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x7A }.Concat(writeChunk)) &&
+        endWrite.Take(4).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x8A }) &&
+        LogitechHidppCapabilityReader.HasValidOnboardProfileChecksum(updatedProfile),
+        "se construye la escritura HID++ 0x8100 en bloques y se actualizan DPI sin alterar bytes ajenos ni checksum");
+
     var versionRequest = LogitechHidppCapabilityReader.BuildGetProtocolVersionRequest(deviceIndex, softwareId, pingData);
     var versionResponse = new byte[20];
     versionResponse[0] = 0x11;
@@ -657,7 +779,12 @@ static async Task ProbeLogitechAsync()
                     };
                     var slots = await reader.ReadOmmGateAsync(identifiedDevice);
                     foreach (var slot in slots)
-                        Console.WriteLine($"  ranura {slot.DeviceIndex}: filtro OMM estático={slot.MatchesStaticOmmFilter} · DPI={slot.CurrentDpi?.CurrentDpi.ToString() ?? "?"} · polling={slot.CurrentReportRateMs?.ToString() ?? "?"} ms · batería={slot.Battery?.Level?.ToString() ?? "?"}% · firmware={string.Join(", ", slot.Firmware.Select(firmware => firmware.Summary))} · firmware receptor={string.Join(", ", slot.ReceiverFirmware.Select(firmware => firmware.Summary))}");
+                    {
+                        var memory = slot.OnboardProfilesInfo is { } info
+                            ? $"formato {info.ProfileFormatId} · {info.ProfileCount} perfiles · {info.SectorCount} sectores de {info.SectorSize} bytes"
+                            : "sin respuesta";
+                        Console.WriteLine($"  ranura {slot.DeviceIndex}: filtro OMM estático={slot.MatchesStaticOmmFilter} · DPI={slot.CurrentDpi?.CurrentDpi.ToString() ?? "?"} · polling={slot.CurrentReportRateMs?.ToString() ?? "?"} ms · memoria integrada={memory} · batería={slot.Battery?.Level?.ToString() ?? "?"}% · firmware={string.Join(", ", slot.Firmware.Select(firmware => firmware.Summary))} · firmware receptor={string.Join(", ", slot.ReceiverFirmware.Select(firmware => firmware.Summary))}");
+                    }
                     if (slots.Count == 0) Console.WriteLine("  la identidad coincidió, pero las consultas de funciones no respondieron");
                 }
                 else Console.WriteLine("  el nombre identificado no coincide con el PID del receptor; no se consultan funciones de modelo");
@@ -668,6 +795,98 @@ static async Task ProbeLogitechAsync()
             Console.WriteLine($"  error de lectura: {exception.Message}");
         }
     }
+}
+
+static async Task ProbeLogitechProfileMemoryAsync()
+{
+    var candidates = new DeviceDiscoveryService().Scan()
+        .Where(device => device.VendorId == 0x046D && device.ProductId == 0xC547 &&
+            (device.HidInterfaces ?? []).Any(item => item.UsagePage == 0xFF00 && item.Usage == 0x0002 &&
+                item.InputReportBytes == 20 && item.OutputReportBytes == 20))
+        .ToArray();
+    if (candidates.Length == 0)
+    {
+        Console.WriteLine("No se encontró el receptor Lightspeed del PRO X SUPERLIGHT C547.");
+        return;
+    }
+
+    var reader = new LogitechHidppCapabilityReader();
+    foreach (var device in candidates)
+    {
+        try
+        {
+            var identity = (await reader.ReadDeviceIdentitiesAsync(device))
+                .FirstOrDefault(item => LogitechHidppCapabilityReader.ModelKeyFromDeviceName(item.DeviceName) ==
+                    "logitech-pro-x-superlight");
+            if (identity is null)
+            {
+                Console.WriteLine("El receptor no confirmó el PRO X SUPERLIGHT en sus ranuras.");
+                continue;
+            }
+
+            var identifiedDevice = device with
+            {
+                Product = identity.DeviceName,
+                ModelKey = "logitech-pro-x-superlight",
+                Kind = DeviceKind.Mouse,
+                IsAuxiliary = false
+            };
+            var profile = await reader.ReadOnboardProfilesAsync(identifiedDevice);
+            var profiles = string.Join(" | ", profile.Profiles.Select(stored =>
+            {
+                var stages = string.Join(", ", stored.DpiStages.Select((dpi, index) => dpi is int value
+                    ? $"{value:N0}{(index == stored.DefaultDpiIndex ? "*" : string.Empty)}"
+                    : "vacía"));
+                return $"sector {stored.Sector}{(profile.ActiveSector == stored.Sector ? " activo" : stored.IsEnabled ? " habilitado" : string.Empty)}: {stages} DPI";
+            }));
+            Console.WriteLine($"PRO X SUPERLIGHT · modo {(profile.Mode == 1 ? "integrado" : "G HUB")} · formato {profile.Info.ProfileFormatId} · " +
+                $"perfiles: {profiles} · DPI en vivo: {profile.LiveDpi?.ToString("N0") ?? "sin respuesta"} · " +
+                "checksums verificados · solo lectura (* = predeterminado)");
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine($"No se pudo leer la memoria integrada: {exception.Message}");
+        }
+    }
+}
+
+static async Task SaveLogitechOnboardDpiAsync()
+{
+    var candidates = new DeviceDiscoveryService().Scan()
+        .Where(device => device.VendorId == 0x046D && device.ProductId == 0xC547 &&
+            (device.HidInterfaces ?? []).Any(item => item.UsagePage == 0xFF00 && item.Usage == 0x0002 &&
+                item.InputReportBytes == 20 && item.OutputReportBytes == 20))
+        .ToArray();
+    var reader = new LogitechHidppCapabilityReader();
+    foreach (var device in candidates)
+    {
+        try
+        {
+            var identity = (await reader.ReadDeviceIdentitiesAsync(device)).FirstOrDefault(item =>
+                LogitechHidppCapabilityReader.ModelKeyFromDeviceName(item.DeviceName) == "logitech-pro-x-superlight");
+            if (identity is null) continue;
+            var identified = device with
+            {
+                Product = identity.DeviceName, ModelKey = "logitech-pro-x-superlight",
+                Kind = DeviceKind.Mouse, IsAuxiliary = false
+            };
+            var profile = new DeviceLocalProfileLibrary().Load("logitech-pro-x-superlight");
+            var stages = new[] { profile.Dpi1, profile.Dpi2, profile.Dpi3, profile.Dpi4, profile.Dpi5 }
+                .Take(Math.Clamp(profile.DpiStageCount, 1, 5)).ToArray();
+            var defaultIndex = (byte)(Math.Clamp(profile.ActiveDpiStage, 1, stages.Length) - 1);
+            Console.WriteLine($"Guardando {string.Join(", ", stages)} DPI; etapa activa: {stages[defaultIndex]} DPI…");
+            var result = await reader.SaveOnboardDpiStagesAsync(identified, stages, defaultIndex);
+            var live = await reader.SetCurrentDpiAsync(identified, stages[defaultIndex]);
+            Console.WriteLine($"Confirmado por lectura: sector {result.Sector}, {string.Join(", ", result.DpiStages)} DPI, predeterminado {stages[result.DefaultDpiIndex]} DPI; sensor actual {live} DPI.");
+            return;
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine($"No se pudo completar el guardado: {exception.Message}");
+            return;
+        }
+    }
+    Console.WriteLine("No se encontró un PRO X SUPERLIGHT conectado y confirmado; no se escribió nada.");
 }
 
 static async Task ProbeLogitechPairingAsync()

@@ -18,6 +18,7 @@ public sealed class LogitechHidppCapabilityReader
     private const int LongReportLength = 20;
     private const int ShortReportLength = 7;
     private const int ResponseTimeoutMs = 350;
+    private const int WriteResponseTimeoutMs = 3000;
     private const int ReceiverRegisterTimeoutMs = 1800;
     private const uint GenericRead = 0x80000000;
     private const uint GenericWrite = 0x40000000;
@@ -115,6 +116,9 @@ public sealed class LogitechHidppCapabilityReader
             var firmware = deviceInformationFeatureIndex is > 0
                 ? await ReadFirmwareInfoAsync(stream, index, deviceInformationFeatureIndex.Value, cancellationToken)
                 : [];
+            var onboardProfilesInfo = features[0x8100] is > 0
+                ? await ReadOnboardProfilesInfoAsync(stream, index, features[0x8100]!.Value, cancellationToken)
+                : null;
             slots.Add(new(index, protocol.Value.Major, protocol.Value.Minor,
                 features[0x0003] is > 0, features[0x0005] is > 0,
                 features[0x2201] is > 0, features[0x2202] is > 0,
@@ -128,12 +132,228 @@ public sealed class LogitechHidppCapabilityReader
                 CurrentDpi = dpi,
                 BatteryFeatureIndex = batteryFeatureIndex,
                 Battery = battery,
+                OnboardProfilesInfo = onboardProfilesInfo,
                 Firmware = firmware,
                 ReceiverFirmware = receiverFirmware
             });
         }
 
         return slots;
+    }
+
+    public async Task<LogitechOnboardProfileSnapshot> ReadOnboardProfilesAsync(
+        HardwareDevice device, CancellationToken cancellationToken = default)
+    {
+        if (device.VendorId != 0x046D || device.ProductId != 0xC547 ||
+            device.ModelKey != "logitech-pro-x-superlight")
+            throw new InvalidOperationException("La lectura de memoria está limitada al PRO X SUPERLIGHT C547 identificado.");
+
+        var endpoint = (device.HidInterfaces ?? []).FirstOrDefault(item => item.UsagePage == 0xFF00 &&
+            item.Usage == 0x0002 && item.InputReportBytes == LongReportLength &&
+            item.OutputReportBytes == LongReportLength && item.Path.Length > 0)
+            ?? throw new InvalidOperationException("No se encontró la conexión HID++ de 20 bytes del receptor.");
+        using var handle = CreateFile(endpoint.Path, GenericRead | GenericWrite, ShareReadWrite,
+            IntPtr.Zero, OpenExisting, FileFlagOverlapped, IntPtr.Zero);
+        if (handle.IsInvalid) throw new IOException("Windows no pudo abrir la conexión HID++ para leer la memoria.");
+        await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
+
+        for (byte deviceIndex = 1; deviceIndex <= 6; deviceIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var nameIndex = await ReadFeatureIndexAsync(stream, deviceIndex, 0x0005, cancellationToken);
+            if (nameIndex is null or 0) continue;
+            var protocol = await ReadProtocolVersionAsync(stream, deviceIndex, cancellationToken);
+            if (protocol is null || !IsHidpp20ProtocolMajor(protocol.Value.Major) ||
+                await ReadDeviceTypeAsync(stream, deviceIndex, nameIndex.Value, cancellationToken) != HidppMouseDeviceType)
+                continue;
+            var name = await ReadDeviceNameAsync(stream, deviceIndex, nameIndex.Value, cancellationToken);
+            if (ModelKeyFromDeviceName(name ?? string.Empty) != device.ModelKey) continue;
+
+            var profileFeature = await ReadFeatureIndexAsync(stream, deviceIndex, 0x8100, cancellationToken);
+            if (profileFeature is null or 0) throw new IOException("El SUPERLIGHT no respondió a perfiles integrados.");
+            var info = await ReadOnboardProfilesInfoAsync(stream, deviceIndex, profileFeature.Value, cancellationToken)
+                ?? throw new IOException("El ratón no respondió a la información de perfiles.");
+            if (info.ProfileFormatId != 4 || info.SectorSize != 255 || info.SectorCount < 2)
+                throw new InvalidOperationException($"Formato de memoria no validado para esta lectura ({info.ProfileFormatId}, {info.SectorSize} bytes).");
+
+            var modeRequest = BuildGetOnboardProfileModeRequest(deviceIndex, profileFeature.Value, SoftwareId);
+            await stream.WriteAsync(modeRequest, cancellationToken);
+            var modeResponse = await ReadResponseAsync(stream, deviceIndex, profileFeature.Value,
+                modeRequest[3], cancellationToken);
+            if (modeResponse is null || !TryReadOnboardProfileModeResponse(modeResponse, deviceIndex,
+                profileFeature.Value, SoftwareId, out var mode))
+                throw new IOException("El ratón no confirmó si usa el perfil integrado o el de G HUB.");
+            ushort? activeSector = null;
+            if (mode == 0x01)
+            {
+                var currentRequest = BuildGetCurrentOnboardProfileRequest(deviceIndex, profileFeature.Value, SoftwareId);
+                await stream.WriteAsync(currentRequest, cancellationToken);
+                var currentResponse = await ReadResponseAsync(stream, deviceIndex, profileFeature.Value,
+                    currentRequest[3], cancellationToken);
+                if (currentResponse is null || !TryReadCurrentOnboardProfileResponse(currentResponse, deviceIndex,
+                    profileFeature.Value, SoftwareId, out var current))
+                    throw new IOException("El ratón no confirmó qué perfil está activo.");
+                activeSector = current;
+            }
+
+            var directory = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                0, info.SectorSize, cancellationToken);
+            if (!TryReadOnboardProfileDirectory(directory, info.SectorCount, info.ProfileCount, out var entries))
+                throw new IOException("La lista de perfiles no superó la validación de integridad.");
+            if (activeSector is { } currentSector && !entries.Any(entry => entry.Sector == currentSector))
+                throw new IOException("El perfil activo no aparece en la lista almacenada por el ratón.");
+
+            var profiles = new List<LogitechStoredProfile>(entries.Count);
+            foreach (var entry in entries)
+            {
+                var profile = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                    entry.Sector, info.SectorSize, cancellationToken);
+                if (!TryReadFormat4DpiTable(profile, out var defaultDpiIndex, out var stages))
+                    throw new IOException($"El perfil {entry.Sector} tiene un formato DPI o checksum no válido.");
+                profiles.Add(new(entry.Sector, entry.IsEnabled, defaultDpiIndex, stages, profile));
+            }
+
+            var dpiFeature = await ReadFeatureIndexAsync(stream, deviceIndex, 0x2201, cancellationToken);
+            var liveDpi = dpiFeature is > 0
+                ? await ReadCurrentDpiAsync(stream, deviceIndex, dpiFeature.Value, cancellationToken)
+                : null;
+            return new(info, mode, activeSector, entries, profiles, liveDpi?.CurrentDpi, directory);
+        }
+
+        throw new IOException("El receptor no confirmó un ratón PRO X SUPERLIGHT en sus ranuras.");
+    }
+
+    public async Task<LogitechOnboardDpiWriteResult> SaveOnboardDpiStagesAsync(
+        HardwareDevice device, IReadOnlyList<int> dpiStages, byte defaultDpiIndex,
+        CancellationToken cancellationToken = default)
+    {
+        if (device.VendorId != 0x046D || device.ProductId != 0xC547 ||
+            device.ModelKey != "logitech-pro-x-superlight")
+            throw new InvalidOperationException("Guardar DPI está limitado al PRO X SUPERLIGHT C547 identificado.");
+        if (dpiStages.Count is < 1 or > 5 || defaultDpiIndex >= dpiStages.Count)
+            throw new ArgumentOutOfRangeException(nameof(dpiStages), "El perfil debe tener entre una y cinco etapas y una etapa predeterminada válida.");
+
+        var endpoint = (device.HidInterfaces ?? []).FirstOrDefault(item => item.UsagePage == 0xFF00 &&
+            item.Usage == 0x0002 && item.InputReportBytes == LongReportLength &&
+            item.OutputReportBytes == LongReportLength && item.Path.Length > 0)
+            ?? throw new InvalidOperationException("No se encontró la conexión HID++ de 20 bytes del receptor.");
+        using var handle = CreateFile(endpoint.Path, GenericRead | GenericWrite, ShareReadWrite,
+            IntPtr.Zero, OpenExisting, FileFlagOverlapped, IntPtr.Zero);
+        if (handle.IsInvalid) throw new IOException("Windows no pudo abrir la conexión HID++ para guardar DPI.");
+        await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
+
+        for (byte deviceIndex = 1; deviceIndex <= 6; deviceIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var nameIndex = await ReadFeatureIndexAsync(stream, deviceIndex, 0x0005, cancellationToken);
+            if (nameIndex is null or 0) continue;
+            var protocol = await ReadProtocolVersionAsync(stream, deviceIndex, cancellationToken);
+            if (protocol is null || !IsHidpp20ProtocolMajor(protocol.Value.Major) ||
+                await ReadDeviceTypeAsync(stream, deviceIndex, nameIndex.Value, cancellationToken) != HidppMouseDeviceType ||
+                ModelKeyFromDeviceName(await ReadDeviceNameAsync(stream, deviceIndex, nameIndex.Value, cancellationToken) ?? string.Empty)
+                    != device.ModelKey) continue;
+
+            var profileFeature = await ReadFeatureIndexAsync(stream, deviceIndex, 0x8100, cancellationToken);
+            if (profileFeature is null or 0) throw new IOException("El ratón no respondió a perfiles integrados.");
+            var info = await ReadOnboardProfilesInfoAsync(stream, deviceIndex, profileFeature.Value, cancellationToken)
+                ?? throw new IOException("El ratón no respondió a la información de perfiles.");
+            if (info.ProfileFormatId != 4 || info.SectorSize != 255 || info.SectorCount < 3)
+                throw new InvalidOperationException("La escritura solo está habilitada para el formato 4 de 255 bytes verificado.");
+
+            var modeRequest = BuildGetOnboardProfileModeRequest(deviceIndex, profileFeature.Value, SoftwareId);
+            await stream.WriteAsync(modeRequest, cancellationToken);
+            var modeResponse = await ReadResponseAsync(stream, deviceIndex, profileFeature.Value, modeRequest[3], cancellationToken);
+            if (modeResponse is null || !TryReadOnboardProfileModeResponse(modeResponse, deviceIndex,
+                profileFeature.Value, SoftwareId, out var mode))
+                throw new IOException("El ratón no confirmó el modo de sus perfiles.");
+
+            ushort? activeSector = null;
+            if (mode == 0x01)
+            {
+                var currentRequest = BuildGetCurrentOnboardProfileRequest(deviceIndex, profileFeature.Value, SoftwareId);
+                await stream.WriteAsync(currentRequest, cancellationToken);
+                var currentResponse = await ReadResponseAsync(stream, deviceIndex, profileFeature.Value, currentRequest[3], cancellationToken);
+                if (currentResponse is null || !TryReadCurrentOnboardProfileResponse(currentResponse, deviceIndex,
+                    profileFeature.Value, SoftwareId, out var current))
+                    throw new IOException("El ratón no confirmó el perfil integrado activo.");
+                activeSector = current;
+            }
+
+            var directory = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                0, info.SectorSize, cancellationToken);
+            if (!TryReadOnboardProfileDirectory(directory, info.SectorCount, info.ProfileCount, out var entries))
+                throw new IOException("La lista de perfiles no superó la validación de integridad.");
+            var eligible = mode == 0x01
+                ? entries.Where(entry => entry.Sector == activeSector && entry.IsEnabled).ToArray()
+                : entries.Where(entry => entry.IsEnabled).ToArray();
+            if (eligible.Length != 1)
+                throw new InvalidOperationException("No se puede elegir un perfil único y habilitado para guardar los DPI.");
+            var target = eligible[0];
+
+            var dpiFeature = await ReadFeatureIndexAsync(stream, deviceIndex, 0x2201, cancellationToken);
+            if (dpiFeature is null or 0) throw new InvalidOperationException("El sensor no ofrece la lista de DPI compatibles.");
+            var currentDpi = await ReadCurrentDpiAsync(stream, deviceIndex, dpiFeature.Value, cancellationToken)
+                ?? throw new IOException("No se pudo leer el DPI actual del sensor.");
+            var supported = await ReadSensorDpiListAsync(stream, deviceIndex, dpiFeature.Value,
+                currentDpi.SensorIndex, cancellationToken)
+                ?? throw new IOException("No se pudo leer la lista de DPI admitidos.");
+            if (dpiStages.Any(dpi => dpi is < 100 or > 25600 || !supported.Contains(dpi)))
+                throw new InvalidOperationException("Una etapa no coincide con los DPI admitidos por este ratón; no se escribió nada.");
+
+            var original = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                target.Sector, info.SectorSize, cancellationToken);
+            if (!TryReadFormat4DpiTable(original, out _, out _))
+                throw new IOException("El perfil que se va a modificar no tiene un formato DPI y checksum válidos.");
+            var updated = BuildFormat4DpiProfile(original, dpiStages, defaultDpiIndex);
+            var changed = !original.AsSpan().SequenceEqual(updated);
+            if (!changed) return new(target.Sector, defaultDpiIndex, dpiStages.ToArray(), false, mode == 0x01);
+
+            var probeEntry = entries.FirstOrDefault(entry => !entry.IsEnabled && entry.Sector != target.Sector && entry.Sector != activeSector);
+            if (probeEntry is null) throw new InvalidOperationException("No hay una ranura deshabilitada para validar la escritura de forma reversible.");
+            var probeOriginal = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                probeEntry.Sector, info.SectorSize, cancellationToken);
+            if (!TryReadFormat4DpiTable(probeOriginal, out _, out _))
+                throw new IOException("La ranura libre no superó el checksum; no se escribirá en el perfil activo.");
+            await ProbeProfileWriteSequenceAsync(stream, deviceIndex, profileFeature.Value,
+                probeEntry.Sector, probeOriginal, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                await WriteOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                    target.Sector, updated, cancellationToken);
+                var readBack = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                    target.Sector, info.SectorSize, cancellationToken);
+                if (!readBack.AsSpan().SequenceEqual(updated) ||
+                    !TryReadFormat4DpiTable(readBack, out var readDefault, out var readStages) ||
+                    readDefault != defaultDpiIndex || !readStages.Take(dpiStages.Count)
+                        .Select(value => value ?? -1).SequenceEqual(dpiStages) ||
+                    readStages.Skip(dpiStages.Count).Any(stage => stage is not null))
+                    throw new IOException("El ratón no devolvió las mismas etapas DPI después de guardar.");
+            }
+            catch (Exception writeError)
+            {
+                try
+                {
+                    await WriteOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                        target.Sector, original, CancellationToken.None);
+                    var restored = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
+                        target.Sector, info.SectorSize, CancellationToken.None);
+                    if (!restored.AsSpan().SequenceEqual(original))
+                        throw new IOException("La lectura no coincide con la copia previa.");
+                }
+                catch (Exception restoreError)
+                {
+                    throw new IOException("Falló la escritura y tampoco se pudo confirmar la restauración del perfil. No desconectes el ratón y revisa su perfil.",
+                        new AggregateException(writeError, restoreError));
+                }
+                throw new IOException("Falló la escritura; el perfil original se restauró y se leyó de vuelta.", writeError);
+            }
+
+            return new(target.Sector, defaultDpiIndex, dpiStages.ToArray(), true, mode == 0x01);
+        }
+
+        throw new IOException("El receptor no confirmó un ratón PRO X SUPERLIGHT en sus ranuras.");
     }
 
     public async Task<int> SetCurrentDpiAsync(
@@ -389,6 +609,230 @@ public sealed class LogitechHidppCapabilityReader
         report[5] = (byte)featureId;
         return report;
     }
+
+    public static byte[] BuildGetOnboardProfilesInfoRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = softwareId;
+        return report;
+    }
+
+    public static bool TryReadOnboardProfilesInfoResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId,
+        out LogitechOnboardProfilesInfo? info)
+    {
+        info = null;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != softwareId) return false;
+
+        info = new(response[4], response[5], response[6], response[7], response[8], response[9], response[10],
+            (ushort)((response[11] << 8) | response[12]), response[13], response[14], response[15..20].ToArray());
+        return true;
+    }
+
+    public static byte[] BuildReadOnboardProfileMemoryRequest(
+        byte deviceIndex, byte featureIndex, ushort sector, ushort offset, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || offset > 0x00EF)
+            throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x50 | softwareId);
+        report[4] = (byte)(sector >> 8);
+        report[5] = (byte)sector;
+        report[6] = (byte)(offset >> 8);
+        report[7] = (byte)offset;
+        return report;
+    }
+
+    public static bool TryReadOnboardProfileMemoryResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId,
+        out byte[] data)
+    {
+        data = [];
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != (byte)(0x50 | softwareId)) return false;
+        data = response[4..20].ToArray();
+        return true;
+    }
+
+    public static byte[] BuildGetCurrentOnboardProfileRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x40 | softwareId);
+        return report;
+    }
+
+    public static byte[] BuildGetOnboardProfileModeRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x20 | softwareId);
+        return report;
+    }
+
+    public static bool TryReadOnboardProfileModeResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId, out byte mode)
+    {
+        mode = 0;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != (byte)(0x20 | softwareId)) return false;
+        mode = response[4];
+        return mode is 0x01 or 0x02;
+    }
+
+    public static bool TryReadCurrentOnboardProfileResponse(
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId, out ushort sector)
+    {
+        sector = 0;
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F || response.Length != LongReportLength ||
+            response[0] != LongReportId || response[1] != deviceIndex || response[2] != featureIndex ||
+            response[3] != (byte)(0x40 | softwareId)) return false;
+        sector = (ushort)((response[4] << 8) | response[5]);
+        return sector != 0 && sector != ushort.MaxValue;
+    }
+
+    public static bool TryReadOnboardProfileDirectory(
+        ReadOnlySpan<byte> sector, byte sectorCount, byte expectedProfileCount,
+        out IReadOnlyList<LogitechOnboardProfileDirectoryEntry> entries)
+    {
+        entries = [];
+        if (sector.Length < 16 || !HasValidOnboardProfileChecksum(sector)) return false;
+        var parsed = new List<LogitechOnboardProfileDirectoryEntry>();
+        for (var offset = 0; offset + 3 < sector.Length - 2; offset += 4)
+        {
+            var profileSector = (ushort)((sector[offset] << 8) | sector[offset + 1]);
+            if (profileSector is 0 or ushort.MaxValue) break;
+            if (profileSector >= sectorCount || sector[offset + 2] > 1 ||
+                parsed.Any(entry => entry.Sector == profileSector)) return false;
+            parsed.Add(new(profileSector, sector[offset + 2] == 1));
+        }
+
+        if (parsed.Count != expectedProfileCount || parsed.Count == 0)
+            return false;
+        entries = parsed;
+        return true;
+    }
+
+    public static bool TryReadFormat4DpiTable(
+        ReadOnlySpan<byte> profile, out byte defaultDpiIndex, out IReadOnlyList<int?> stages)
+    {
+        defaultDpiIndex = 0;
+        stages = [];
+        if (profile.Length != 255 || !HasValidOnboardProfileChecksum(profile)) return false;
+        defaultDpiIndex = profile[1];
+        if (defaultDpiIndex >= 5) return false;
+
+        var parsed = new int?[5];
+        for (var index = 0; index < parsed.Length; index++)
+        {
+            var offset = 3 + index * 2;
+            var dpi = profile[offset] | profile[offset + 1] << 8;
+            if (dpi is 0 or ushort.MaxValue) continue;
+            if (dpi > 57343) return false;
+            parsed[index] = dpi;
+        }
+        if (parsed[defaultDpiIndex] is null) return false;
+        stages = parsed;
+        return true;
+    }
+
+    public static byte[] BuildFormat4DpiProfile(
+        ReadOnlySpan<byte> original, IReadOnlyList<int> dpiStages, byte defaultDpiIndex)
+    {
+        if (original.Length != 255 || !TryReadFormat4DpiTable(original, out _, out _) ||
+            dpiStages.Count is < 1 or > 5 || defaultDpiIndex >= dpiStages.Count ||
+            dpiStages.Any(dpi => dpi is < 100 or > 25600))
+            throw new InvalidDataException("El perfil o la selección DPI no tienen un formato 4 válido.");
+
+        var updated = original.ToArray();
+        updated[1] = defaultDpiIndex;
+        for (var index = 0; index < 5; index++)
+        {
+            var dpi = index < dpiStages.Count ? (ushort)dpiStages[index] : ushort.MaxValue;
+            updated[3 + index * 2] = (byte)dpi;
+            updated[4 + index * 2] = (byte)(dpi >> 8);
+        }
+        var checksum = ComputeOnboardProfileChecksum(updated);
+        updated[^2] = (byte)(checksum >> 8);
+        updated[^1] = (byte)checksum;
+        return updated;
+    }
+
+    public static byte[] BuildStartOnboardProfileWriteRequest(
+        byte deviceIndex, byte featureIndex, ushort sector, ushort length, byte softwareId)
+    {
+        if (featureIndex == 0 || sector == 0 || length is 0 or > 1024 || softwareId is 0 or > 0x0F)
+            throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x60 | softwareId);
+        report[4] = (byte)(sector >> 8);
+        report[5] = (byte)sector;
+        report[8] = (byte)(length >> 8);
+        report[9] = (byte)length;
+        return report;
+    }
+
+    public static byte[] BuildOnboardProfileWriteDataRequest(
+        byte deviceIndex, byte featureIndex, ReadOnlySpan<byte> data, byte softwareId)
+    {
+        if (featureIndex == 0 || data.Length != 16 || softwareId is 0 or > 0x0F)
+            throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x70 | softwareId);
+        data.CopyTo(report.AsSpan(4));
+        return report;
+    }
+
+    public static byte[] BuildEndOnboardProfileWriteRequest(byte deviceIndex, byte featureIndex, byte softwareId)
+    {
+        if (featureIndex == 0 || softwareId is 0 or > 0x0F) throw new ArgumentOutOfRangeException();
+        var report = new byte[LongReportLength];
+        report[0] = LongReportId;
+        report[1] = deviceIndex;
+        report[2] = featureIndex;
+        report[3] = (byte)(0x80 | softwareId);
+        return report;
+    }
+
+    public static ushort ComputeOnboardProfileChecksum(ReadOnlySpan<byte> sector)
+    {
+        if (sector.Length < 3) throw new ArgumentException("Un sector debe incluir datos y dos bytes de checksum.", nameof(sector));
+        ushort crc = 0xFFFF;
+        foreach (var value in sector[..^2])
+        {
+            crc ^= (ushort)(value << 8);
+            for (var bit = 0; bit < 8; bit++)
+                crc = (ushort)((crc & 0x8000) != 0 ? (crc << 1) ^ 0x1021 : crc << 1);
+        }
+        return crc;
+    }
+
+    public static bool HasValidOnboardProfileChecksum(ReadOnlySpan<byte> sector) =>
+        sector.Length >= 3 && ComputeOnboardProfileChecksum(sector) ==
+        (ushort)((sector[^2] << 8) | sector[^1]);
 
     public static bool TryReadFeatureIndex(ReadOnlySpan<byte> response, byte deviceIndex, byte softwareId, out byte featureIndex)
     {
@@ -722,6 +1166,110 @@ public sealed class LogitechHidppCapabilityReader
             ? index : null;
     }
 
+    private static async Task<LogitechOnboardProfilesInfo?> ReadOnboardProfilesInfoAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, CancellationToken cancellationToken)
+    {
+        var request = BuildGetOnboardProfilesInfoRequest(deviceIndex, featureIndex, SoftwareId);
+        await stream.WriteAsync(request, cancellationToken);
+        var response = await ReadResponseAsync(stream, deviceIndex, featureIndex, request[3], cancellationToken);
+        return response is not null && TryReadOnboardProfilesInfoResponse(response, deviceIndex, featureIndex,
+            SoftwareId, out var info) ? info : null;
+    }
+
+    private static async Task<byte[]> ReadOnboardProfileSectorAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, ushort sector, ushort sectorSize,
+        CancellationToken cancellationToken)
+    {
+        if (sectorSize is < 16 or > 1024) throw new InvalidOperationException("El tamaño del sector no es válido.");
+        var bytes = new byte[sectorSize];
+        async Task ReadChunkAsync(ushort offset)
+        {
+            var request = BuildReadOnboardProfileMemoryRequest(deviceIndex, featureIndex, sector, offset, SoftwareId);
+            await stream.WriteAsync(request, cancellationToken);
+            var response = await ReadResponseAsync(stream, deviceIndex, featureIndex, request[3], cancellationToken);
+            if (response is null || !TryReadOnboardProfileMemoryResponse(response, deviceIndex, featureIndex,
+                SoftwareId, out var chunk))
+                throw new IOException($"El ratón no devolvió el sector {sector} en el offset {offset}.");
+            chunk.AsSpan(0, Math.Min(chunk.Length, bytes.Length - offset)).CopyTo(bytes.AsSpan(offset));
+        }
+
+        ushort offset = 0;
+        for (; offset + 16 <= sectorSize; offset += 16)
+            await ReadChunkAsync(offset);
+        if (offset < sectorSize) await ReadChunkAsync((ushort)(sectorSize - 16));
+        return bytes;
+    }
+
+    private static async Task ProbeProfileWriteSequenceAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, ushort sector, byte[] original,
+        CancellationToken cancellationToken)
+    {
+        var offset = Array.FindLastIndex(original, original.Length - 3, original.Length - 2, value => value == 0xFF);
+        if (offset < 0) offset = original.Length - 3;
+        var probe = original.ToArray();
+        probe[offset] ^= 0x01;
+        var checksum = ComputeOnboardProfileChecksum(probe);
+        probe[^2] = (byte)(checksum >> 8);
+        probe[^1] = (byte)checksum;
+        Exception? probeError = null;
+        try
+        {
+            await WriteOnboardProfileSectorAsync(stream, deviceIndex, featureIndex, sector, probe, cancellationToken);
+            var readBack = await ReadOnboardProfileSectorAsync(stream, deviceIndex, featureIndex,
+                sector, (ushort)original.Length, cancellationToken);
+            if (!readBack.AsSpan().SequenceEqual(probe) || !HasValidOnboardProfileChecksum(readBack))
+                throw new IOException("La prueba reversible de escritura no coincidió con la lectura posterior.");
+        }
+        catch (Exception exception) { probeError = exception; }
+
+        try
+        {
+            await WriteOnboardProfileSectorAsync(stream, deviceIndex, featureIndex, sector, original, CancellationToken.None);
+            var restored = await ReadOnboardProfileSectorAsync(stream, deviceIndex, featureIndex,
+                sector, (ushort)original.Length, CancellationToken.None);
+            if (!restored.AsSpan().SequenceEqual(original))
+                throw new IOException("La lectura no coincide con la copia original de la ranura libre.");
+        }
+        catch (Exception restoreError)
+        {
+            throw new IOException("Falló la prueba y no se pudo confirmar la restauración de la ranura libre.",
+                probeError is null ? restoreError : new AggregateException(probeError, restoreError));
+        }
+
+        if (probeError is not null)
+            throw new IOException("El ratón no confirmó la prueba de escritura; la ranura libre se restauró y verificó.", probeError);
+    }
+
+    private static async Task WriteOnboardProfileSectorAsync(
+        FileStream stream, byte deviceIndex, byte featureIndex, ushort sector, byte[] bytes,
+        CancellationToken cancellationToken)
+    {
+        var start = BuildStartOnboardProfileWriteRequest(deviceIndex, featureIndex, sector, (ushort)bytes.Length, SoftwareId);
+        await stream.WriteAsync(start, cancellationToken);
+        if (await ReadResponseAsync(stream, deviceIndex, featureIndex, start[3], cancellationToken,
+            WriteResponseTimeoutMs) is null)
+            throw new IOException($"El ratón no confirmó el inicio de escritura del sector {sector}.");
+
+        var chunk = new byte[16];
+        for (var offset = 0; offset < bytes.Length; offset += 16)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Array.Fill(chunk, (byte)0xFF);
+            bytes.AsSpan(offset, Math.Min(16, bytes.Length - offset)).CopyTo(chunk);
+            var request = BuildOnboardProfileWriteDataRequest(deviceIndex, featureIndex, chunk, SoftwareId);
+            await stream.WriteAsync(request, cancellationToken);
+            if (await ReadResponseAsync(stream, deviceIndex, featureIndex, request[3], cancellationToken,
+                WriteResponseTimeoutMs) is null)
+                throw new IOException($"El ratón no confirmó el bloque de escritura del sector {sector}.");
+        }
+
+        var end = BuildEndOnboardProfileWriteRequest(deviceIndex, featureIndex, SoftwareId);
+        await stream.WriteAsync(end, cancellationToken);
+        if (await ReadResponseAsync(stream, deviceIndex, featureIndex, end[3], cancellationToken,
+            WriteResponseTimeoutMs) is null)
+            throw new IOException($"El ratón no confirmó el cierre de escritura del sector {sector}.");
+    }
+
     private static async Task<(byte Major, byte Minor)?> ReadProtocolVersionAsync(
         FileStream stream, byte deviceIndex, CancellationToken cancellationToken)
     {
@@ -864,10 +1412,10 @@ public sealed class LogitechHidppCapabilityReader
 
     private static async Task<byte[]?> ReadResponseAsync(
         FileStream stream, byte deviceIndex, byte featureIndex, byte functionAndSoftwareId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, int timeoutMs = ResponseTimeoutMs)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(ResponseTimeoutMs);
+        timeout.CancelAfter(timeoutMs);
         var report = new byte[LongReportLength];
         while (true)
         {
@@ -923,6 +1471,7 @@ public sealed record LogitechHidppSlotStatus(
     public LogitechBatteryReading? Battery { get; init; }
     public IReadOnlyList<LogitechFirmwareReading> Firmware { get; init; } = [];
     public IReadOnlyList<LogitechFirmwareReading> ReceiverFirmware { get; init; } = [];
+    public LogitechOnboardProfilesInfo? OnboardProfilesInfo { get; init; }
 
     public bool HasAdjustableDpi => HasFeature2201 || HasFeature2202;
 
@@ -931,6 +1480,19 @@ public sealed record LogitechHidppSlotStatus(
 }
 
 public sealed record LogitechDpiReading(byte SensorIndex, byte SensorCount, int CurrentDpi, int? DefaultDpi);
+public sealed record LogitechOnboardProfilesInfo(
+    byte MemoryModelId, byte ProfileFormatId, byte MacroFormatId, byte ProfileCount, byte ProfileCountOutOfBand,
+    byte ButtonCount, byte SectorCount, ushort SectorSize, byte MechanicalLayout, byte VariousInfo,
+    IReadOnlyList<byte> Reserved);
+public sealed record LogitechOnboardProfileDirectoryEntry(ushort Sector, bool IsEnabled);
+public sealed record LogitechStoredProfile(
+    ushort Sector, bool IsEnabled, byte DefaultDpiIndex, IReadOnlyList<int?> DpiStages, byte[] RawProfile);
+public sealed record LogitechOnboardDpiWriteResult(
+    ushort Sector, byte DefaultDpiIndex, IReadOnlyList<int> DpiStages, bool Changed, bool OnboardMode);
+public sealed record LogitechOnboardProfileSnapshot(
+    LogitechOnboardProfilesInfo Info, byte Mode, ushort? ActiveSector,
+    IReadOnlyList<LogitechOnboardProfileDirectoryEntry> Directory,
+    IReadOnlyList<LogitechStoredProfile> Profiles, int? LiveDpi, byte[] RawDirectory);
 public sealed record LogitechBatteryReading(byte? Level, byte NextLevel, byte Status)
 {
     public string StatusLabel => Status switch

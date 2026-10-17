@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using NexoHub.Models;
@@ -17,6 +18,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _xboxInputTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
     private readonly DispatcherTimer _profileSwitchTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly Dictionary<int, XboxMacroInputTracker> _xboxMacroTrackers = [];
+    private bool _deviceViewTransitioning;
 
     public MainWindow()
     {
@@ -87,8 +89,48 @@ public partial class MainWindow : Window
         }
     }
     private async void RefreshDevices(object sender, RoutedEventArgs e) => await _viewModel.RefreshAsync();
+    private void OpenDeviceSettings(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: DeviceCardViewModel device }) return;
+        _viewModel.SelectedDevice = device;
+        TransitionDeviceView(DeviceCardsView, DeviceSettingsView, showSettings: true);
+    }
+
+    private void ShowDeviceCards(object sender, RoutedEventArgs e) =>
+        TransitionDeviceView(DeviceSettingsView, DeviceCardsView, showSettings: false);
+
+    private void TransitionDeviceView(Grid from, Grid to, bool showSettings)
+    {
+        if (_deviceViewTransitioning || from.Visibility != Visibility.Visible) return;
+        _deviceViewTransitioning = true;
+        var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(100))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        fadeOut.Completed += (_, _) =>
+        {
+            from.Visibility = Visibility.Collapsed;
+            from.Opacity = 1;
+            DevicesPageTitle.Text = showSettings ? "Configura tu dispositivo" : "Tus dispositivos";
+            DevicesPageSubtitle.Text = showSettings && _viewModel.SelectedDevice is { } selected
+                ? $"Ajustes para {selected.DisplayName}."
+                : "Una vista para el equipo que usas.";
+            BackToDevicesButton.Visibility = showSettings ? Visibility.Visible : Visibility.Collapsed;
+            to.Opacity = 0;
+            to.Visibility = Visibility.Visible;
+            var fadeIn = new DoubleAnimation(1, TimeSpan.FromMilliseconds(140))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            fadeIn.Completed += (_, _) => _deviceViewTransitioning = false;
+            to.BeginAnimation(OpacityProperty, fadeIn);
+        };
+        from.BeginAnimation(OpacityProperty, fadeOut);
+    }
+
     private async void ReadLogitechCapabilities(object sender, RoutedEventArgs e) => await _viewModel.ReadLogitechCapabilitiesAsync();
     private async void ApplyLogitechDpi(object sender, RoutedEventArgs e) => await _viewModel.ApplyLogitechDpiAsync();
+    private async void SaveLogitechOnboardDpi(object sender, RoutedEventArgs e) => await _viewModel.SaveLogitechOnboardDpiAsync();
     private async void ReadLogitechMouseIdentity(object sender, RoutedEventArgs e) => await _viewModel.IdentifyLogitechMouseAsync();
     private void ToggleAuxiliary(object sender, RoutedEventArgs e) => _viewModel.ShowAuxiliary = !_viewModel.ShowAuxiliary;
     private void AddLogitechDpiStage(object sender, RoutedEventArgs e) => _viewModel.SelectedDevice?.AddLogitechDpiStage();
