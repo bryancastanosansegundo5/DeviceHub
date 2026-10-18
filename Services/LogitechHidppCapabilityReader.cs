@@ -48,6 +48,8 @@ public sealed class LogitechHidppCapabilityReader
         (0x8110, "Filtro de botones del ratón")
     ];
 
+    private static readonly byte[] DeviceIndexCandidates = [0xFF, 1, 2, 3, 4, 5, 6];
+
     public async Task<IReadOnlyList<LogitechHidppSlotStatus>> ReadOmmGateAsync(
         HardwareDevice device, CancellationToken cancellationToken = default)
     {
@@ -61,16 +63,15 @@ public sealed class LogitechHidppCapabilityReader
             item.Usage == 0x0002 && item.InputReportBytes == LongReportLength &&
             item.OutputReportBytes == LongReportLength && item.Path.Length > 0);
         if (endpoint is null)
-            throw new InvalidOperationException("No se encontró la colección HID de 20 bytes observada en este receptor.");
+            throw new InvalidOperationException("No se encontró la colección HID++ de 20 bytes de este ratón.");
 
         using var handle = CreateFile(endpoint.Path, GenericRead | GenericWrite, ShareReadWrite,
             IntPtr.Zero, OpenExisting, FileFlagOverlapped, IntPtr.Zero);
         if (handle.IsInvalid) throw new IOException("Windows no pudo abrir la colección HID de consulta.");
         await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
 
-        var receiverFirmware = await ReadReceiverFirmwareInfoAsync(stream, cancellationToken);
         var slots = new List<LogitechHidppSlotStatus>();
-        for (byte index = 1; index <= 6; index++)
+        foreach (var index in DeviceIndexCandidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var nameAndTypeIndex = await ReadFeatureIndexAsync(stream, index, 0x0005, cancellationToken);
@@ -133,9 +134,9 @@ public sealed class LogitechHidppCapabilityReader
                 BatteryFeatureIndex = batteryFeatureIndex,
                 Battery = battery,
                 OnboardProfilesInfo = onboardProfilesInfo,
-                Firmware = firmware,
-                ReceiverFirmware = receiverFirmware
+                Firmware = firmware
             });
+            break;
         }
 
         return slots;
@@ -144,20 +145,22 @@ public sealed class LogitechHidppCapabilityReader
     public async Task<LogitechOnboardProfileSnapshot> ReadOnboardProfilesAsync(
         HardwareDevice device, CancellationToken cancellationToken = default)
     {
-        if (device.VendorId != 0x046D || device.ProductId != 0xC547 ||
-            device.ModelKey != "logitech-pro-x-superlight")
-            throw new InvalidOperationException("La lectura de memoria está limitada al PRO X SUPERLIGHT C547 identificado.");
+        if (device.VendorId != 0x046D ||
+            device.ProductId == 0xC539 && device.ModelKey != "logitech-pro-wireless" ||
+            device.ProductId == 0xC547 && device.ModelKey != "logitech-pro-x-superlight" ||
+            device.ProductId is not (0xC539 or 0xC547))
+            throw new InvalidOperationException("La lectura de memoria requiere un PRO WIRELESS C539 o PRO X SUPERLIGHT C547 identificado.");
 
         var endpoint = (device.HidInterfaces ?? []).FirstOrDefault(item => item.UsagePage == 0xFF00 &&
             item.Usage == 0x0002 && item.InputReportBytes == LongReportLength &&
             item.OutputReportBytes == LongReportLength && item.Path.Length > 0)
-            ?? throw new InvalidOperationException("No se encontró la conexión HID++ de 20 bytes del receptor.");
+            ?? throw new InvalidOperationException("No se encontró la conexión HID++ de 20 bytes del ratón.");
         using var handle = CreateFile(endpoint.Path, GenericRead | GenericWrite, ShareReadWrite,
             IntPtr.Zero, OpenExisting, FileFlagOverlapped, IntPtr.Zero);
         if (handle.IsInvalid) throw new IOException("Windows no pudo abrir la conexión HID++ para leer la memoria.");
         await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
 
-        for (byte deviceIndex = 1; deviceIndex <= 6; deviceIndex++)
+        foreach (var deviceIndex in DeviceIndexCandidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var nameIndex = await ReadFeatureIndexAsync(stream, deviceIndex, 0x0005, cancellationToken);
@@ -170,10 +173,10 @@ public sealed class LogitechHidppCapabilityReader
             if (ModelKeyFromDeviceName(name ?? string.Empty) != device.ModelKey) continue;
 
             var profileFeature = await ReadFeatureIndexAsync(stream, deviceIndex, 0x8100, cancellationToken);
-            if (profileFeature is null or 0) throw new IOException("El SUPERLIGHT no respondió a perfiles integrados.");
+            if (profileFeature is null or 0) throw new IOException("El ratón no respondió a perfiles integrados.");
             var info = await ReadOnboardProfilesInfoAsync(stream, deviceIndex, profileFeature.Value, cancellationToken)
                 ?? throw new IOException("El ratón no respondió a la información de perfiles.");
-            if (info.ProfileFormatId != 4 || info.SectorSize != 255 || info.SectorCount < 2)
+            if (info.ProfileFormatId is not (3 or 4) || info.SectorSize != 255 || info.SectorCount < 2)
                 throw new InvalidOperationException($"Formato de memoria no validado para esta lectura ({info.ProfileFormatId}, {info.SectorSize} bytes).");
 
             var modeRequest = BuildGetOnboardProfileModeRequest(deviceIndex, profileFeature.Value, SoftwareId);
@@ -208,7 +211,7 @@ public sealed class LogitechHidppCapabilityReader
             {
                 var profile = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
                     entry.Sector, info.SectorSize, cancellationToken);
-                if (!TryReadFormat4DpiTable(profile, out var defaultDpiIndex, out var stages))
+                if (!TryReadBaseV1DpiTable(profile, out var defaultDpiIndex, out var stages))
                     throw new IOException($"El perfil {entry.Sector} tiene un formato DPI o checksum no válido.");
                 profiles.Add(new(entry.Sector, entry.IsEnabled, defaultDpiIndex, stages, profile));
             }
@@ -220,16 +223,18 @@ public sealed class LogitechHidppCapabilityReader
             return new(info, mode, activeSector, entries, profiles, liveDpi?.CurrentDpi, directory);
         }
 
-        throw new IOException("El receptor no confirmó un ratón PRO X SUPERLIGHT en sus ranuras.");
+        throw new IOException("No se encontró el ratón identificado en los canales HID++ probados.");
     }
 
     public async Task<LogitechOnboardDpiWriteResult> SaveOnboardDpiStagesAsync(
         HardwareDevice device, IReadOnlyList<int> dpiStages, byte defaultDpiIndex,
         CancellationToken cancellationToken = default)
     {
-        if (device.VendorId != 0x046D || device.ProductId != 0xC547 ||
-            device.ModelKey != "logitech-pro-x-superlight")
-            throw new InvalidOperationException("Guardar DPI está limitado al PRO X SUPERLIGHT C547 identificado.");
+        if (device.VendorId != 0x046D ||
+            device.ProductId == 0xC539 && device.ModelKey != "logitech-pro-wireless" ||
+            device.ProductId == 0xC547 && device.ModelKey != "logitech-pro-x-superlight" ||
+            device.ProductId is not (0xC539 or 0xC547))
+            throw new InvalidOperationException("Guardar DPI requiere un PRO WIRELESS C539 o PRO X SUPERLIGHT C547 identificado.");
         if (dpiStages.Count is < 1 or > 5 || defaultDpiIndex >= dpiStages.Count)
             throw new ArgumentOutOfRangeException(nameof(dpiStages), "El perfil debe tener entre una y cinco etapas y una etapa predeterminada válida.");
 
@@ -242,7 +247,7 @@ public sealed class LogitechHidppCapabilityReader
         if (handle.IsInvalid) throw new IOException("Windows no pudo abrir la conexión HID++ para guardar DPI.");
         await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
 
-        for (byte deviceIndex = 1; deviceIndex <= 6; deviceIndex++)
+        foreach (var deviceIndex in DeviceIndexCandidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var nameIndex = await ReadFeatureIndexAsync(stream, deviceIndex, 0x0005, cancellationToken);
@@ -257,8 +262,8 @@ public sealed class LogitechHidppCapabilityReader
             if (profileFeature is null or 0) throw new IOException("El ratón no respondió a perfiles integrados.");
             var info = await ReadOnboardProfilesInfoAsync(stream, deviceIndex, profileFeature.Value, cancellationToken)
                 ?? throw new IOException("El ratón no respondió a la información de perfiles.");
-            if (info.ProfileFormatId != 4 || info.SectorSize != 255 || info.SectorCount < 3)
-                throw new InvalidOperationException("La escritura solo está habilitada para el formato 4 de 255 bytes verificado.");
+            if (info.ProfileFormatId is not (3 or 4) || info.SectorSize != 255 || info.SectorCount < 3)
+                throw new InvalidOperationException("La escritura solo está habilitada para los formatos 3 y 4 de 255 bytes verificados.");
 
             var modeRequest = BuildGetOnboardProfileModeRequest(deviceIndex, profileFeature.Value, SoftwareId);
             await stream.WriteAsync(modeRequest, cancellationToken);
@@ -302,9 +307,9 @@ public sealed class LogitechHidppCapabilityReader
 
             var original = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
                 target.Sector, info.SectorSize, cancellationToken);
-            if (!TryReadFormat4DpiTable(original, out _, out _))
+            if (!TryReadBaseV1DpiTable(original, out _, out _))
                 throw new IOException("El perfil que se va a modificar no tiene un formato DPI y checksum válidos.");
-            var updated = BuildFormat4DpiProfile(original, dpiStages, defaultDpiIndex);
+            var updated = BuildBaseV1DpiProfile(original, dpiStages, defaultDpiIndex);
             var changed = !original.AsSpan().SequenceEqual(updated);
             if (!changed) return new(target.Sector, defaultDpiIndex, dpiStages.ToArray(), false, mode == 0x01);
 
@@ -312,7 +317,7 @@ public sealed class LogitechHidppCapabilityReader
             if (probeEntry is null) throw new InvalidOperationException("No hay una ranura deshabilitada para validar la escritura de forma reversible.");
             var probeOriginal = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
                 probeEntry.Sector, info.SectorSize, cancellationToken);
-            if (!TryReadFormat4DpiTable(probeOriginal, out _, out _))
+            if (!TryReadBaseV1DpiTable(probeOriginal, out _, out _))
                 throw new IOException("La ranura libre no superó el checksum; no se escribirá en el perfil activo.");
             await ProbeProfileWriteSequenceAsync(stream, deviceIndex, profileFeature.Value,
                 probeEntry.Sector, probeOriginal, cancellationToken);
@@ -325,7 +330,7 @@ public sealed class LogitechHidppCapabilityReader
                 var readBack = await ReadOnboardProfileSectorAsync(stream, deviceIndex, profileFeature.Value,
                     target.Sector, info.SectorSize, cancellationToken);
                 if (!readBack.AsSpan().SequenceEqual(updated) ||
-                    !TryReadFormat4DpiTable(readBack, out var readDefault, out var readStages) ||
+                    !TryReadBaseV1DpiTable(readBack, out var readDefault, out var readStages) ||
                     readDefault != defaultDpiIndex || !readStages.Take(dpiStages.Count)
                         .Select(value => value ?? -1).SequenceEqual(dpiStages) ||
                     readStages.Skip(dpiStages.Count).Any(stage => stage is not null))
@@ -353,7 +358,7 @@ public sealed class LogitechHidppCapabilityReader
             return new(target.Sector, defaultDpiIndex, dpiStages.ToArray(), true, mode == 0x01);
         }
 
-        throw new IOException("El receptor no confirmó un ratón PRO X SUPERLIGHT en sus ranuras.");
+        throw new IOException("El ratón no respondió en los canales HID++ probados.");
     }
 
     public async Task<int> SetCurrentDpiAsync(
@@ -362,14 +367,14 @@ public sealed class LogitechHidppCapabilityReader
         if (device.VendorId != 0x046D || device.ModelKey is not ("logitech-pro-wireless" or "logitech-pro-x-superlight") ||
             device.ModelKey == "logitech-pro-wireless" && device.ProductId != 0xC539 ||
             device.ModelKey == "logitech-pro-x-superlight" && device.ProductId != 0xC547)
-            throw new InvalidOperationException("La escritura de DPI está limitada a un modelo Logitech identificado por HID++ y su receptor conocido.");
+            throw new InvalidOperationException("La escritura de DPI está limitada a un modelo Logitech confirmado por HID++.");
         if (dpi is < 100 or > 25600) throw new ArgumentOutOfRangeException(nameof(dpi));
 
         var endpoint = (device.HidInterfaces ?? []).FirstOrDefault(item => item.UsagePage == 0xFF00 &&
             item.Usage == 0x0002 && item.InputReportBytes == LongReportLength &&
             item.OutputReportBytes == LongReportLength && item.Path.Length > 0);
         if (endpoint is null)
-            throw new InvalidOperationException("No se encontró la colección HID++ de 20 bytes del PRO WIRELESS.");
+            throw new InvalidOperationException("No se encontró la colección HID++ de 20 bytes del ratón.");
 
         using var handle = CreateFile(endpoint.Path, GenericRead | GenericWrite, ShareReadWrite,
             IntPtr.Zero, OpenExisting, FileFlagOverlapped, IntPtr.Zero);
@@ -377,7 +382,7 @@ public sealed class LogitechHidppCapabilityReader
         await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
 
         var anySlotResponded = false;
-        for (byte deviceIndex = 1; deviceIndex <= 6; deviceIndex++)
+        foreach (var deviceIndex in DeviceIndexCandidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var nameAndTypeIndex = await ReadFeatureIndexAsync(stream, deviceIndex, 0x0005, cancellationToken);
@@ -401,18 +406,18 @@ public sealed class LogitechHidppCapabilityReader
                 throw new InvalidOperationException("El ratón no confirmó ese valor DPI. No se cambió el DPI.");
             if (current.CurrentDpi == dpi) return dpi;
 
-            var acknowledged = await SetSensorDpiAsync(stream, deviceIndex, dpiFeatureIndex.Value,
+            await SetSensorDpiAsync(stream, deviceIndex, dpiFeatureIndex.Value,
                 current.SensorIndex, dpi, cancellationToken);
             var readback = await ReadCurrentDpiAsync(stream, deviceIndex, dpiFeatureIndex.Value, cancellationToken);
-            if (acknowledged && readback?.CurrentDpi == dpi) return dpi;
+            if (readback?.CurrentDpi == dpi) return dpi;
 
             var restored = readback?.CurrentDpi == current.CurrentDpi;
             if (!restored)
             {
-                var restoreAcknowledged = await SetSensorDpiAsync(stream, deviceIndex, dpiFeatureIndex.Value,
+                await SetSensorDpiAsync(stream, deviceIndex, dpiFeatureIndex.Value,
                     current.SensorIndex, current.CurrentDpi, cancellationToken);
                 var restoreReadback = await ReadCurrentDpiAsync(stream, deviceIndex, dpiFeatureIndex.Value, cancellationToken);
-                restored = restoreAcknowledged && restoreReadback?.CurrentDpi == current.CurrentDpi;
+                restored = restoreReadback?.CurrentDpi == current.CurrentDpi;
             }
 
             throw new IOException(restored
@@ -440,7 +445,7 @@ public sealed class LogitechHidppCapabilityReader
         await using var stream = new FileStream(handle, FileAccess.ReadWrite, LongReportLength, isAsync: true);
 
         var devices = new List<LogitechDeviceIdentity>();
-        for (byte deviceIndex = 1; deviceIndex <= 6; deviceIndex++)
+        foreach (var deviceIndex in DeviceIndexCandidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var nameAndTypeIndex = await ReadFeatureIndexAsync(stream, deviceIndex, 0x0005, cancellationToken);
@@ -458,27 +463,7 @@ public sealed class LogitechHidppCapabilityReader
             {
                 Firmware = firmware
             });
-        }
-
-        var receiverProtocol = await ReadProtocolVersionAsync(stream, 0xFF, cancellationToken);
-        if (receiverProtocol is { } version && IsHidpp20ProtocolMajor(version.Major))
-        {
-            var receiverNameAndTypeIndex = await ReadFeatureIndexAsync(stream, 0xFF, 0x0005, cancellationToken);
-            // A timed-out GetFeature has no ID echo, so a later root query could consume its delayed reply.
-            if (receiverNameAndTypeIndex is null) return devices;
-            byte? receiverType = receiverNameAndTypeIndex is > 0
-                ? await ReadDeviceTypeAsync(stream, 0xFF, receiverNameAndTypeIndex.Value, cancellationToken)
-                : null;
-            var receiverName = receiverNameAndTypeIndex is > 0
-                ? await ReadDeviceNameAsync(stream, 0xFF, receiverNameAndTypeIndex.Value, cancellationToken)
-                : null;
-            var firmwareFeatureIndex = await ReadFeatureIndexAsync(stream, 0xFF, DeviceInformationFeatureId, cancellationToken);
-            var firmware = firmwareFeatureIndex is > 0
-                ? await ReadFirmwareInfoAsync(stream, 0xFF, firmwareFeatureIndex.Value, cancellationToken)
-                : [];
-            if (receiverType is not null || firmware.Count > 0)
-                devices.Add(new(0xFF, receiverName ?? "Receptor Logitech", receiverType,
-                    version.Major, version.Minor) { Firmware = firmware });
+            if (deviceIndex == 0xFF && type == HidppMouseDeviceType) return devices;
         }
 
         return devices;
@@ -487,12 +472,12 @@ public sealed class LogitechHidppCapabilityReader
     public async Task<LogitechReceiverPairingInfo?> ReadReceiverPairingInfoAsync(
         HardwareDevice device, CancellationToken cancellationToken = default)
     {
-        var pairings = await ReadReceiverPairingInfosAsync(device, cancellationToken);
+        var pairings = await ReadReceiverPairingInfosAsync(device, cancellationToken, stopWhenMatchingModel: true);
         return pairings.FirstOrDefault(pairing => pairing.DeviceKind == 2) ?? pairings.FirstOrDefault();
     }
 
     public async Task<IReadOnlyList<LogitechReceiverPairingInfo>> ReadReceiverPairingInfosAsync(
-        HardwareDevice device, CancellationToken cancellationToken = default)
+        HardwareDevice device, CancellationToken cancellationToken = default, bool stopWhenMatchingModel = false)
     {
         if (device.VendorId != 0x046D || device.ProductId is not (0xC539 or 0xC547))
             throw new InvalidOperationException("La lectura de emparejamiento requiere un receptor Logitech C539 o C547.");
@@ -515,6 +500,7 @@ public sealed class LogitechHidppCapabilityReader
         await using var writeStream = new FileStream(writeHandle, FileAccess.Write, ShortReportLength, isAsync: true);
         await using var readStream = new FileStream(readHandle, FileAccess.Read, LongReportLength, isAsync: true);
         var pairings = new List<LogitechReceiverPairingInfo>();
+        var expectedModelKey = device.ProductId == 0xC539 ? "logitech-pro-wireless" : "logitech-pro-x-superlight";
         for (byte slot = 1; slot <= 6; slot++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -526,7 +512,7 @@ public sealed class LogitechHidppCapabilityReader
                 continue;
 
             string? name = null;
-            if (kind == 2)
+            if (kind == 2 && !stopWhenMatchingModel)
             {
                 var nameRequest = BuildGetReceiverDeviceNameRequest(slot);
                 var nameResponseTask = ReadReceiverRegisterResponseAsync(readStream, nameRequest[4], cancellationToken);
@@ -536,6 +522,8 @@ public sealed class LogitechHidppCapabilityReader
                     name = storedName;
             }
             pairings.Add(new(slot, wpid, kind, name));
+            if (stopWhenMatchingModel && ModelFromWirelessProductId(wpid)?.ModelKey == expectedModelKey)
+                return pairings;
         }
 
         return pairings;
@@ -730,7 +718,7 @@ public sealed class LogitechHidppCapabilityReader
         return true;
     }
 
-    public static bool TryReadFormat4DpiTable(
+    public static bool TryReadBaseV1DpiTable(
         ReadOnlySpan<byte> profile, out byte defaultDpiIndex, out IReadOnlyList<int?> stages)
     {
         defaultDpiIndex = 0;
@@ -753,13 +741,13 @@ public sealed class LogitechHidppCapabilityReader
         return true;
     }
 
-    public static byte[] BuildFormat4DpiProfile(
+    public static byte[] BuildBaseV1DpiProfile(
         ReadOnlySpan<byte> original, IReadOnlyList<int> dpiStages, byte defaultDpiIndex)
     {
-        if (original.Length != 255 || !TryReadFormat4DpiTable(original, out _, out _) ||
+        if (original.Length != 255 || !TryReadBaseV1DpiTable(original, out _, out _) ||
             dpiStages.Count is < 1 or > 5 || defaultDpiIndex >= dpiStages.Count ||
             dpiStages.Any(dpi => dpi is < 100 or > 25600))
-            throw new InvalidDataException("El perfil o la selección DPI no tienen un formato 4 válido.");
+            throw new InvalidDataException("El perfil o la selección DPI base-v1 no son válidos.");
 
         var updated = original.ToArray();
         updated[1] = defaultDpiIndex;
@@ -1134,11 +1122,10 @@ public sealed class LogitechHidppCapabilityReader
     }
 
     public static bool TryReadSetSensorDpiResponse(
-        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte sensorIndex, int dpi, byte softwareId) =>
-        featureIndex > 0 && softwareId is > 0 and <= 0x0F && dpi is >= 1 and <= 57343 &&
-        response.Length == LongReportLength && response[0] == LongReportId && response[1] == deviceIndex &&
-        response[2] == featureIndex && response[3] == (byte)(0x30 | softwareId) && response[4] == sensorIndex &&
-        response[5] == (byte)(dpi >> 8) && response[6] == (byte)dpi;
+        ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte softwareId) =>
+        featureIndex > 0 && softwareId is > 0 and <= 0x0F && response.Length == LongReportLength &&
+        response[0] == LongReportId && response[1] == deviceIndex && response[2] == featureIndex &&
+        response[3] == (byte)(0x30 | softwareId);
 
     public static bool TryReadSensorDpiResponse(
         ReadOnlySpan<byte> response, byte deviceIndex, byte featureIndex, byte sensorIndex, byte softwareId,
@@ -1350,8 +1337,7 @@ public sealed class LogitechHidppCapabilityReader
         var request = BuildSetSensorDpiRequest(deviceIndex, featureIndex, sensorIndex, dpi, SoftwareId);
         await stream.WriteAsync(request, cancellationToken);
         var response = await ReadResponseAsync(stream, deviceIndex, featureIndex, request[3], cancellationToken);
-        return response is not null && TryReadSetSensorDpiResponse(response, deviceIndex, featureIndex,
-            sensorIndex, dpi, SoftwareId);
+        return response is not null && TryReadSetSensorDpiResponse(response, deviceIndex, featureIndex, SoftwareId);
     }
 
     private static async Task<byte?> ReadCurrentReportRateAsync(

@@ -92,16 +92,18 @@ public sealed class DeviceAdapterRegistry
     private sealed class AjazzAdapter : IDeviceAdapter
     {
         public bool Matches(HardwareDevice device) =>
-            device.ModelKey == "ajazz-ak820" || device.VendorId == 0x0C45;
+            device.ModelKey is "ajazz-ak820" or "ajazz-24g-receiver";
 
         public AdapterInfo Describe(HardwareDevice device) => new(
             "AJAZZ",
             device.Product.Contains("AK820", StringComparison.OrdinalIgnoreCase) ? device.Product : "Teclado AJAZZ",
-            "AK820 detectado · variante Pro probable",
-            "El controlador AJAZZ Beta 1.0.0.5 define AK820 Pro para USB 8009/800A y receptor 2.4 GHz FDFD. Este teclado anuncia PID 8006; el idioma del controlador advierte que Bluetooth no admite ajustes.",
+            device.ModelKey == "ajazz-24g-receiver" ? "Receptor AJAZZ detectado" : "AK820 detectado",
+            device.ModelKey == "ajazz-24g-receiver"
+                ? "Receptor USB AJAZZ 2.4 GHz; el teclado emparejado puede aparecer como otro dispositivo HID."
+                : "El controlador AJAZZ Beta 1.0.0.5 declara AK820 para USB 8009/800A y receptor 2.4 GHz FDFD. AJAZZ indica que Bluetooth no admite ajustes.",
             [
-                new("Mapa de 81 teclas", "Perfil local", "Basado en rgb-keyboard.xml del paquete AJAZZ; puedes guardar colores por tecla en Nexo."),
-                new("Conexión del controlador", "USB / 2.4 GHz", "config.xml declara 8009, 800A y el receptor FDFD; el PID 8006 de este equipo requiere confirmar si es otra revisión."),
+                new("Mapa de 81 teclas", device.ModelKey == "ajazz-ak820" ? "Perfil local" : "No aplica al receptor", "Basado en rgb-keyboard.xml del paquete AJAZZ; puedes guardar colores por tecla en Nexo."),
+                new("Conexión del controlador", device.ModelKey == "ajazz-ak820" ? "USB / 2.4 GHz" : "Receptor 2.4 GHz", "El paquete local declara los PID USB 8009/800A y el receptor FDFD; Bluetooth no admite configuración."),
                 new("Iluminación, macros y reasignación", "Pendiente", "El ejecutable referencia hid.dll y HidD_SetFeature; aún no se conoce el formato de los reportes ni se han validado escrituras."),
                 new("Memoria integrada", "Sin validar", "No se escribe firmware ni memoria a bordo.")
             ]);

@@ -51,7 +51,7 @@ public sealed class AjazzKeyboardMap : UserControl
         {
             Width = 800,
             Height = 300,
-            Background = new SolidColorBrush(Color.FromRgb(28, 39, 45))
+            Background = new SolidColorBrush(Color.FromRgb(31, 31, 31))
         };
         Content = new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, Child = _canvas };
         Loaded += (_, _) => RefreshColors();
@@ -69,7 +69,7 @@ public sealed class AjazzKeyboardMap : UserControl
                 Height = key.Height,
                 CornerRadius = new CornerRadius(3),
                 Background = ColorFor(key.Code),
-                BorderBrush = selected ? new SolidColorBrush(Color.FromRgb(83, 214, 194)) : new SolidColorBrush(Color.FromRgb(108, 126, 136)),
+                BorderBrush = selected ? new SolidColorBrush(Color.FromRgb(0, 120, 212)) : new SolidColorBrush(Color.FromRgb(90, 90, 90)),
                 BorderThickness = selected ? new Thickness(2.5) : new Thickness(1),
                 Cursor = Cursors.Hand,
                 ToolTip = $"{key.Name} · HID {key.Code}",
@@ -111,7 +111,7 @@ public sealed class AjazzKeyboardMap : UserControl
             ColorConverter.ConvertFromString("#" + hex) is Color color)
             return new SolidColorBrush(color);
 
-        return new SolidColorBrush(Color.FromRgb(75, 89, 98));
+        return new SolidColorBrush(Color.FromRgb(48, 48, 48));
     }
 
     private static KeyDefinition[] LoadLayout()

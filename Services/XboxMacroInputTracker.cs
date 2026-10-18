@@ -15,13 +15,16 @@ public readonly record struct XboxMacroInputTransition(MacroTrigger Trigger, boo
 
 public sealed class XboxMacroInputTracker
 {
-    private const int StickThreshold = 16_000;
-    private const byte TriggerThreshold = 128;
     private readonly HashSet<MacroTrigger> _pressed = [];
 
-    public IReadOnlyList<XboxMacroInputTransition> Update(XboxMacroInputState? state)
+    public IReadOnlyList<XboxMacroInputTransition> Update(XboxMacroInputState? state, DeviceLocalProfile? profile = null)
     {
-        var current = state is XboxMacroInputState input ? GetPressedTriggers(input) : [];
+        var current = state is XboxMacroInputState input
+            ? GetPressedTriggers(input, profile?.LeftTriggerStart ?? 0, profile?.LeftTriggerEnd ?? 10,
+                profile?.RightTriggerStart ?? 0, profile?.RightTriggerEnd ?? 10,
+                profile?.LeftStickMacroThresholdPercent ?? 48.83,
+                profile?.RightStickMacroThresholdPercent ?? 48.83)
+            : [];
         var transitions = _pressed.Except(current).Order()
             .Select(trigger => new XboxMacroInputTransition(trigger, false))
             .Concat(current.Except(_pressed).Order()
@@ -32,7 +35,9 @@ public sealed class XboxMacroInputTracker
         return transitions;
     }
 
-    public static HashSet<MacroTrigger> GetPressedTriggers(XboxMacroInputState input)
+    public static HashSet<MacroTrigger> GetPressedTriggers(XboxMacroInputState input,
+        int leftTriggerStart = 0, int leftTriggerEnd = 10, int rightTriggerStart = 0, int rightTriggerEnd = 10,
+        double leftStickMacroThresholdPercent = 48.83, double rightStickMacroThresholdPercent = 48.83)
     {
         var pressed = new HashSet<MacroTrigger>();
         AddButton(0x0001, MacroTrigger.XboxDpadUp);
@@ -49,10 +54,10 @@ public sealed class XboxMacroInputTracker
         AddButton(0x2000, MacroTrigger.XboxB);
         AddButton(0x4000, MacroTrigger.XboxX);
         AddButton(0x8000, MacroTrigger.XboxY);
-        if (input.LeftTrigger >= TriggerThreshold) pressed.Add(MacroTrigger.XboxLeftTrigger);
-        if (input.RightTrigger >= TriggerThreshold) pressed.Add(MacroTrigger.XboxRightTrigger);
-        AddStick(input.LeftStickX, input.LeftStickY, left: true);
-        AddStick(input.RightStickX, input.RightStickY, left: false);
+        if (input.LeftTrigger >= GetTriggerThreshold(leftTriggerStart, leftTriggerEnd)) pressed.Add(MacroTrigger.XboxLeftTrigger);
+        if (input.RightTrigger >= GetTriggerThreshold(rightTriggerStart, rightTriggerEnd)) pressed.Add(MacroTrigger.XboxRightTrigger);
+        AddStick(input.LeftStickX, input.LeftStickY, left: true, thresholdPercent: leftStickMacroThresholdPercent);
+        AddStick(input.RightStickX, input.RightStickY, left: false, thresholdPercent: rightStickMacroThresholdPercent);
         return pressed;
 
         void AddButton(ushort mask, MacroTrigger trigger)
@@ -60,11 +65,12 @@ public sealed class XboxMacroInputTracker
             if ((input.Buttons & mask) != 0) pressed.Add(trigger);
         }
 
-        void AddStick(short x, short y, bool left)
+        void AddStick(short x, short y, bool left, double thresholdPercent)
         {
             var horizontal = Math.Abs((int)x);
             var vertical = Math.Abs((int)y);
-            if ((long)x * x + (long)y * y < (long)StickThreshold * StickThreshold) return;
+            var threshold = (int)Math.Round(Math.Clamp(thresholdPercent, 10, 90) * short.MaxValue / 100);
+            if ((long)x * x + (long)y * y < (long)threshold * threshold) return;
 
             var direction = horizontal * 2 <= vertical
                 ? y > 0 ? 0 : 4
@@ -94,5 +100,12 @@ public sealed class XboxMacroInputTracker
             };
             pressed.Add(trigger);
         }
+    }
+
+    private static byte GetTriggerThreshold(int start, int end)
+    {
+        start = Math.Clamp(start, 0, 10);
+        end = Math.Clamp(end, start, 10);
+        return (byte)Math.Max(1, Math.Round((start + end) * 255d / 20d, MidpointRounding.AwayFromZero));
     }
 }

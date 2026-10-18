@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using NexoHub.Adapters;
 using NexoHub.Models;
@@ -31,6 +32,83 @@ if (args is ["--save-logitech-onboard-dpi"])
     await SaveLogitechOnboardDpiAsync();
     return;
 }
+if (args is ["--apply-xbox-elite-lb-menu"])
+{
+    var elite = new HardwareDevice(
+        Id: "xbox-one-elite",
+        Manufacturer: "Microsoft",
+        Product: "Xbox One Elite",
+        VendorId: 0x045E,
+        ProductId: 0x02E3,
+        Transport: "USB",
+        InterfaceCount: 1,
+        Detail: "Acción explícita autorizada: LB → Menú",
+        ModelKey: "xbox-one-elite",
+        Kind: DeviceKind.Gamepad,
+        InstanceId: "USB\\VID_045E&PID_02E3\\7EED8B24F47E");
+    Console.WriteLine(new XboxEliteProfileWriter().ApplyLeftBumperAssignment(elite, "Botón Menú"));
+    return;
+}
+if (args is ["--apply-xbox-elite-lb-profile1"])
+{
+    var library = new DeviceLocalProfileLibrary();
+    var (profiles, activeProfileId) = library.LoadSet("xbox-one-elite");
+    var profile = profiles.FirstOrDefault(item => item.Id == activeProfileId);
+    if (profile is null || !profile.Name.Equals("Perfil 1", StringComparison.OrdinalIgnoreCase) ||
+        !profile.StorageLabel.Contains("ranura 1", StringComparison.OrdinalIgnoreCase) ||
+        !XboxEliteProfileWriter.TryGetLeftBumperMapping(profile.XboxButtonAssignments.GetValueOrDefault("LB", "LB"), out _, out _))
+        throw new InvalidOperationException("Perfil 1 no está ligado a ranura 1 o no tiene un destino LB admitido; no se escribió nada.");
+
+    var elite = new HardwareDevice(
+        Id: "xbox-one-elite",
+        Manufacturer: "Microsoft",
+        Product: "Xbox One Elite",
+        VendorId: 0x045E,
+        ProductId: 0x02E3,
+        Transport: "USB",
+        InterfaceCount: 1,
+        Detail: "Aplicación explícita del destino LB guardado en Perfil 1",
+        ModelKey: "xbox-one-elite",
+        Kind: DeviceKind.Gamepad,
+        InstanceId: "USB\\VID_045E&PID_02E3\\7EED8B24F47E");
+    var assignment = profile.XboxButtonAssignments.GetValueOrDefault("LB", "LB");
+    var accessoriesSync = library.SyncXboxAccessoriesLeftBumperAssignment(profile.Id, assignment);
+    Console.WriteLine($"{new XboxEliteProfileWriter().ApplyLeftBumperAssignment(elite, assignment)} {accessoriesSync}");
+    return;
+}
+if (args is ["--sync-xbox-accessories-lb-menu"])
+{
+    var library = new DeviceLocalProfileLibrary();
+    var (profiles, activeProfileId) = library.LoadSet("xbox-one-elite");
+    var profile = profiles.FirstOrDefault(item => item.Id == activeProfileId);
+    if (profile is null || !profile.Name.Equals("Perfil 1", StringComparison.OrdinalIgnoreCase) ||
+        !profile.XboxButtonAssignments.GetValueOrDefault("LB", "LB").Equals("Botón Menú", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("El perfil local activo no es Perfil 1 con LB → Menú; no se cambió Xbox Accessories.");
+    Console.WriteLine(library.SyncXboxAccessoriesLeftBumperAssignment(profile.Id, "Botón Menú"));
+    return;
+}
+if (args.Length is 1 or 2 && args[0] == "--watch-xinput")
+{
+    var seconds = args.Length == 2 && int.TryParse(args[1], out var requestedSeconds)
+        ? Math.Clamp(requestedSeconds, 1, 3600)
+        : 600;
+    var input = new XboxInputViewModel();
+    ushort? previousButtons = null;
+    var deadline = DateTimeOffset.UtcNow.AddSeconds(seconds);
+    Console.WriteLine($"Observación XInput de solo lectura durante {seconds}s; no se envían entradas.");
+    while (DateTimeOffset.UtcNow < deadline)
+    {
+        var state = input.Refresh(0);
+        if (state?.Buttons != previousButtons)
+        {
+            var buttons = state?.Buttons ?? 0;
+            Console.WriteLine($"{DateTimeOffset.Now:O} connected={input.IsConnected} buttons=0x{buttons:X4} {input.ButtonsLabel}");
+            previousButtons = state?.Buttons;
+        }
+        Thread.Sleep(20);
+    }
+    return;
+}
 
 var testRoot = Path.Combine(AppContext.BaseDirectory, "self-check-data");
 if (Directory.Exists(testRoot)) Directory.Delete(testRoot, recursive: true);
@@ -44,8 +122,10 @@ try
     CheckAdapterSelection();
     CheckMacroBindingLabels();
     CheckXboxMacroInputEdges();
+    CheckXboxEliteRemapEncoding();
+    CheckXboxAccessoriesProfileSync(testRoot);
     CheckLiveInventory();
-    Console.WriteLine("NexoHub self-check: 8 grupos correctos.");
+    Console.WriteLine("NexoHub self-check: 10 grupos correctos.");
 }
 finally
 {
@@ -216,10 +296,19 @@ static void CheckMacroRoundTrip(string root)
 
 static void CheckDeviceProfileRoundTrip(string root)
 {
+    var xboxAccessoriesProfile = Path.Combine(root, "xbox-accessories-profile.json");
+    File.WriteAllText(xboxAccessoriesProfile,
+        "{\"ConfigurationType\":\"Elite\",\"ConfigurationGuid\":\"0bfe3cf7-9208-4f98-99e6-706dc42247d0\",\"Name\":\"Perfil 1\",\"HardwareLeftBumper\":\"Menu\"}");
+    var parser = typeof(DeviceLocalProfileLibrary).GetMethod("ReadXboxAccessoriesProfile", BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new InvalidOperationException("No se encontró el lector de perfiles Xbox Accessories.");
+    var importedXboxProfile = parser.Invoke(null, [xboxAccessoriesProfile]) as DeviceLocalProfile;
+    Assert(importedXboxProfile is not null && importedXboxProfile.XboxButtonAssignments.TryGetValue("LB", out var leftBumper) &&
+        leftBumper == "Botón Menú", "el perfil Xbox Accessories conserva el remapeo real de LB a Menú");
+
     var profileDirectory = Path.Combine(root, "device-profiles");
     Directory.CreateDirectory(profileDirectory);
     File.WriteAllText(Path.Combine(profileDirectory, "logitech-pro-wireless.json"), "{\"Name\":\"Legacy\"}");
-    var library = new DeviceLocalProfileLibrary(profileDirectory);
+    var library = new DeviceLocalProfileLibrary(profileDirectory, Path.Combine(root, "empty-xbox-accessories-wgs"));
     var legacy = library.Load("logitech-pro-wireless");
     Assert(legacy.Name == "Legacy" && legacy.ShiftDpi == 400,
         "los perfiles Logitech antiguos reciben el valor G-Shift inicial propio del modelo");
@@ -241,6 +330,27 @@ static void CheckDeviceProfileRoundTrip(string root)
         profileSet.Profiles.Single(item => item.Id == alternate.Id).ApplicationExecutable == alternate.ApplicationExecutable &&
         library.Load("logitech-pro-wireless").Name == "Apuntar",
         "se conservan perfiles locales alternos, su aplicación asociada y el perfil activo");
+    var xboxDesktop = new DeviceLocalProfile { Name = "Escritorio", LeftStickMacroThresholdPercent = 70 };
+    var xboxGame = new DeviceLocalProfile
+    {
+        Name = "FC27", ApplicationExecutable = @"C:\Games\FC27.exe", LeftStickMacroThresholdPercent = 20
+    };
+    library.SaveSet("xbox-one-elite", [xboxDesktop, xboxGame], xboxDesktop.Id);
+    var savedXboxProfiles = library.LoadSet("xbox-one-elite");
+    var xboxCard = new DeviceCardViewModel(
+        new HardwareDevice("elite", "Microsoft", "Xbox One Elite", 0x045E, 0x02E3, "XInput", 0, "",
+            ModelKey: "xbox-one-elite", Kind: DeviceKind.Gamepad),
+        new AdapterInfo("XBOX", "Xbox Elite", "Disponible", "", []),
+        localProfiles: savedXboxProfiles.Profiles, activeProfileId: savedXboxProfiles.ActiveProfileId);
+    var xboxTracker = new XboxMacroInputTracker();
+    var shortStickMove = new XboxMacroInputState(0, 0, 0, 8_000, 0, 0, 0);
+    var desktopMove = xboxTracker.Update(shortStickMove, xboxCard.LocalProfile);
+    var switchedToFc27 = xboxCard.SelectProfileForApplication(@"c:\games\fc27.exe");
+    var gameMove = xboxTracker.Update(shortStickMove, xboxCard.LocalProfile);
+    Assert(savedXboxProfiles.Profiles.Count == 2 && switchedToFc27 && desktopMove.Count == 0 &&
+        xboxCard.LocalProfile.LeftStickMacroThresholdPercent == 20 &&
+        gameMove.Single() == new XboxMacroInputTransition(MacroTrigger.XboxLeftStickRight, true),
+        "los perfiles de mando sobreviven en disco y el asociado a FC27 activa su umbral de macro");
     var invalidLogitechDpiRejected = false;
     try { library.Save("logitech-pro-wireless", new DeviceLocalProfile { Name = profile.Name, Dpi4 = 25601 }); }
     catch (InvalidDataException) { invalidLogitechDpiRejected = true; }
@@ -276,8 +386,135 @@ static void CheckDeviceProfileRoundTrip(string root)
     Assert(invalidKeyRejected, "el perfil del AK820 rechaza códigos de tecla que no parecen códigos HID");
 }
 
+static void CheckXboxEliteRemapEncoding()
+{
+    var configuration = Enumerable.Range(0, 55).Select(value => (byte)value).ToArray();
+    configuration[6] = 0xD3; // Captura de Xbox Accessories: LB → Ver.
+    var mapped = XboxEliteProfileWriter.BuildLeftBumperConfiguration(configuration, "Botón A");
+    Assert(mapped.Length == 55 && mapped[6] == 0xD4 &&
+        Enumerable.Range(0, 55).Where(index => index != 6).All(index => mapped[index] == configuration[index]),
+        "LB → A usa el valor derivado del enum GIP y conserva intactos los otros 54 bytes");
+
+    configuration[6] = 0xDC; // Valor escrito por versiones previas de Nexo en el campo de LB.
+    mapped = XboxEliteProfileWriter.BuildLeftBumperConfiguration(configuration, "Botón Menú");
+    Assert(mapped[6] == 0xD2, "LB → Menú repara el valor DC al byte D2 observado");
+
+    configuration[6] = 0xD2;
+    mapped = XboxEliteProfileWriter.BuildLeftBumperConfiguration(configuration, "Botón Menú");
+    Assert(mapped.SequenceEqual(configuration), "LB → Menú es idempotente cuando el valor ya es D2");
+
+    var mappings = new (string Assignment, byte Value)[]
+    {
+        ("Botón Menú", 0xD2), ("Botón Ver", 0xD3), ("Botón A", 0xD4), ("Botón B", 0xD5),
+        ("Botón X", 0xD6), ("Botón Y", 0xD7), ("Cruceta arriba", 0xD8), ("Cruceta abajo", 0xD9),
+        ("Cruceta izquierda", 0xDA), ("Cruceta derecha", 0xDB), ("LB", 0xDC), ("RB", 0xDD),
+        ("Palanca izquierda", 0xDE), ("Palanca derecha", 0xDF)
+    };
+    Assert(mappings.All(mapping => XboxEliteProfileWriter.TryGetLeftBumperMapping(mapping.Assignment, out var value, out _) &&
+        value == mapping.Value), "los destinos estándar siguen la tabla derivada de GipButtonMapVal, anclada por las capturas D2/D3");
+
+    configuration[6] = 0xA5;
+    var rejectedUnknownMapping = false;
+    try { _ = XboxEliteProfileWriter.BuildLeftBumperConfiguration(configuration, "Botón Menú"); }
+    catch (InvalidOperationException) { rejectedUnknownMapping = true; }
+    Assert(rejectedUnknownMapping, "se rechaza escribir sobre un código LB no observado");
+
+    var unsupportedTargetRejected = false;
+    try { _ = XboxEliteProfileWriter.BuildLeftBumperConfiguration(configuration, "LT"); }
+    catch (InvalidOperationException) { unsupportedTargetRejected = true; }
+    Assert(unsupportedTargetRejected, "los gatillos y las paletas quedan fuera del mapa GIP verificado");
+}
+
+static void CheckXboxAccessoriesProfileSync(string root)
+{
+    var missingSlotRoot = Path.Combine(root, "xbox-accessories-missing-slot");
+    var missingSlotConfig = Path.Combine(missingSlotRoot, "account", "configs2");
+    Directory.CreateDirectory(missingSlotConfig);
+    var slotOneGuid = Guid.NewGuid();
+    var missingSlotGuid = Guid.NewGuid();
+    var unassignedProfileGuid = Guid.NewGuid();
+    File.WriteAllText(Path.Combine(missingSlotConfig, "configDisambig"),
+        $"{{\"GIP:controller\":{{\"slot1\":\"{slotOneGuid:D}\",\"slot2\":\"{missingSlotGuid:D}\"}}}}");
+    File.WriteAllText(Path.Combine(missingSlotConfig, slotOneGuid.ToString("D")),
+        $"{{\"ConfigurationType\":\"Elite\",\"ConfigurationGuid\":\"{slotOneGuid:D}\",\"Name\":\"Perfil 1\"}}");
+    File.WriteAllText(Path.Combine(missingSlotConfig, unassignedProfileGuid.ToString("D")),
+        $"{{\"ConfigurationType\":\"Elite\",\"ConfigurationGuid\":\"{unassignedProfileGuid:D}\",\"Name\":\"FIFA sin joys\"}}");
+    var missingSlotImport = new DeviceLocalProfileLibrary(
+        Path.Combine(root, "nexo-profiles-missing-slot"), missingSlotRoot).LoadSet("xbox-one-elite");
+    var missingSlotCard = new DeviceCardViewModel(
+        new HardwareDevice("elite-missing-slot", "Microsoft", "Xbox One Elite", 0x045E, 0x02E3, "USB/HID", 1, "",
+            ModelKey: "xbox-one-elite", Kind: DeviceKind.Gamepad),
+        new AdapterInfo("XBOX", "Xbox Elite", "Disponible", "", []),
+        localProfiles: missingSlotImport.Profiles, activeProfileId: missingSlotImport.ActiveProfileId);
+    Assert(missingSlotImport.Profiles.Single(profile => profile.XboxAccessoriesSlot == 2).IsXboxAccessoriesSlotPlaceholder &&
+        missingSlotCard.XboxSlot2ProfileName == "Perfil no encontrado · ranura 2" &&
+        missingSlotCard.ResolveXboxProfileSlotFromLeftBumper(0xDC) is null &&
+        missingSlotCard.LocalProfiles.Any(profile => profile.Name == "FIFA sin joys" && profile.XboxAccessoriesSlot is null),
+        "una ranura sin archivo local queda identificada y no se asigna por conjetura a otro perfil con LB predeterminado");
+    var missingSlotLibrary = new DeviceLocalProfileLibrary(
+        Path.Combine(root, "nexo-profiles-missing-slot"), missingSlotRoot);
+    missingSlotLibrary.SaveSet("xbox-one-elite", missingSlotImport.Profiles, missingSlotImport.ActiveProfileId);
+    File.WriteAllText(Path.Combine(missingSlotConfig, missingSlotGuid.ToString("D")),
+        $"{{\"ConfigurationType\":\"Elite\",\"ConfigurationGuid\":\"{missingSlotGuid:D}\",\"Name\":\"Perfil recuperado\",\"HardwareUpperLeftPaddle\":\"Unmapped\"}}");
+    var recoveredMissingSlot = missingSlotLibrary.LoadSet("xbox-one-elite").Profiles.Single(profile => profile.XboxAccessoriesSlot == 2);
+    Assert(!recoveredMissingSlot.IsXboxAccessoriesSlotPlaceholder && recoveredMissingSlot.Name == "Perfil recuperado",
+        "si Xbox Accessories vuelve a materializar el archivo de una ranura, se recupera su perfil editable");
+
+    var wgsRoot = Path.Combine(root, "xbox-accessories-wgs");
+    var configDirectory = Path.Combine(wgsRoot, "account", "configs2");
+    Directory.CreateDirectory(configDirectory);
+    var profileId = Guid.NewGuid();
+    var slotTwoId = Guid.NewGuid();
+    File.WriteAllText(Path.Combine(configDirectory, "configDisambig"),
+        $"{{\"GIP:controller\":{{\"slot1\":\"{profileId:D}\",\"slot2\":\"{slotTwoId:D}\"}}}}");
+    var profilePath = Path.Combine(configDirectory, profileId.ToString("D"));
+    File.WriteAllText(profilePath,
+        $"{{\"ConfigurationType\":\"Elite\",\"ConfigurationGuid\":\"{profileId:D}\",\"Name\":\"Perfil 1\",\"HardwareLeftBumper\":\"LeftBumper\",\"HardwareUpperLeftPaddle\":\"LeftBumper\"}}");
+    var slotTwoPath = Path.Combine(configDirectory, slotTwoId.ToString("D"));
+    File.WriteAllText(slotTwoPath,
+        $"{{\"ConfigurationType\":\"Elite\",\"ConfigurationGuid\":\"{slotTwoId:D}\",\"Name\":\"Perfil 2\",\"HardwareLeftBumper\":\"Menu\"}}");
+
+    var library = new DeviceLocalProfileLibrary(Path.Combine(root, "nexo-profiles"), wgsRoot);
+    var imported = library.LoadSet("xbox-one-elite");
+    var importedCard = new DeviceCardViewModel(
+        new HardwareDevice("elite-slots", "Microsoft", "Xbox One Elite", 0x045E, 0x02E3, "USB/HID", 1, "",
+            ModelKey: "xbox-one-elite", Kind: DeviceKind.Gamepad),
+        new AdapterInfo("XBOX", "Xbox Elite", "Disponible", "", []),
+        localProfiles: imported.Profiles, activeProfileId: imported.ActiveProfileId);
+    var profileOneMappings = importedCard.GetConfiguredXboxButtonAssignments();
+    Assert(imported.Profiles.Single(item => item.XboxAccessoriesSlot == 1).Name == "Perfil 1" &&
+        imported.Profiles.Single(item => item.XboxAccessoriesSlot == 2).Name == "Perfil 2" &&
+        imported.ActiveProfileId == profileId.ToString("N") &&
+        profileOneMappings.SequenceEqual([new KeyValuePair<string, string>("Paleta P1", "LB")]) &&
+        importedCard.ResolveXboxProfileSlotFromLeftBumper(0xDC) == 1 &&
+        importedCard.ResolveXboxProfileSlotFromLeftBumper(0xD2) == 2,
+        "la copia de Xbox Accessories asigna los dos perfiles, solo pinta la paleta remapeada y distingue LB por perfil");
+    importedCard.SetDetectedXboxProfileSlot(2);
+    importedCard.LocalProfile.XboxButtonAssignments["Botón A"] = "Botón B";
+    Assert(importedCard.LocalProfile.Name == "Perfil 2" &&
+        importedCard.GetConfiguredXboxButtonAssignments().Contains(new KeyValuePair<string, string>("LB", "Botón Menú")) &&
+        importedCard.GetConfiguredXboxButtonAssignments().Contains(new KeyValuePair<string, string>("Botón A", "Botón B")),
+        "al detectar la segunda ranura se cambia de perfil y la vista previa incluye también remapeos de botones frontales");
+
+    var result = library.SyncXboxAccessoriesLeftBumperAssignment(profileId.ToString("N"), "Botón A");
+    using var profile = System.Text.Json.JsonDocument.Parse(File.ReadAllText(profilePath));
+    using var slotTwo = System.Text.Json.JsonDocument.Parse(File.ReadAllText(slotTwoPath));
+    Assert(profile.RootElement.GetProperty("HardwareLeftBumper").GetString() == "A" &&
+        profile.RootElement.GetProperty("HardwareUpperLeftPaddle").GetString() == "LeftBumper",
+        "la copia local sincroniza LB → A sin tocar las otras asignaciones del perfil Xbox de la ranura 1");
+    Assert(slotTwo.RootElement.GetProperty("HardwareLeftBumper").GetString() == "Menu" &&
+        Directory.GetFiles(Path.Combine(root, "nexo-profiles", "XboxAccessoriesBackups")).Length == 1 &&
+        result.Contains("respaldo guardado", StringComparison.OrdinalIgnoreCase),
+        "la sincronización conserva ranura 2 y guarda respaldo de Perfil 1");
+}
+
 static void CheckAdapterSelection()
 {
+    Assert(MainViewModel.IsAutomaticLogitechIdentityAttemptAllowed(0) &&
+        MainViewModel.IsAutomaticLogitechIdentityAttemptAllowed(1) &&
+        !MainViewModel.IsAutomaticLogitechIdentityAttemptAllowed(2),
+        "la identidad del Superlight recibe como máximo dos lecturas automáticas por conexión");
+
     var registry = new DeviceAdapterRegistry();
     var astro = registry.Describe(new HardwareDevice("astro", "Astro Gaming", "Astro A50", 0x9886, 0x0015, "USB/HID", 2, ""));
     var logitech = registry.Describe(new HardwareDevice("logi", "Logitech", "G device", 0x046D, 0xC547, "USB/HID", 1, ""));
@@ -285,20 +522,87 @@ static void CheckAdapterSelection()
         "USB/HID", 1, "", ModelKey: "logitech-pro-wireless", Kind: DeviceKind.Mouse,
         HidInterfaces: [new(0xFF00, 0x0002, 20, 20, 0)]);
     var proWireless = registry.Describe(proWirelessDevice);
+    var unconfirmedSuperlightDevice = new HardwareDevice("superlight-receiver", "Logitech G", "Ratón Logitech G LIGHTSPEED",
+        0x046D, 0xC547, "USB/HID", 1, "", ModelKey: "logitech-lightspeed-mouse", Kind: DeviceKind.Mouse,
+        HidInterfaces: [new(0xFF00, 0x0002, 20, 20, 0)]);
+    var unconfirmedSuperlight = new DeviceCardViewModel(unconfirmedSuperlightDevice,
+        registry.Describe(unconfirmedSuperlightDevice));
+    var confirmedSuperlightDevice = unconfirmedSuperlightDevice with
+    {
+        Product = "PRO X SUPERLIGHT",
+        ModelKey = "logitech-pro-x-superlight",
+        IdentificationNote = "HID++ 0x0005 confirmó PRO X SUPERLIGHT"
+    };
+    var confirmedSuperlight = new DeviceCardViewModel(confirmedSuperlightDevice,
+        registry.Describe(confirmedSuperlightDevice));
     var xbox = registry.Describe(new HardwareDevice("xbox", "Microsoft", "Xbox controller", 0x045E, 0, "XInput", 0, "", 0));
+    var xboxEliteDevice = new HardwareDevice("xbox-elite", "Microsoft", "Xbox One Elite", 0x045E, 0x02E3,
+        "USB/HID", 1, "", ModelKey: "xbox-one-elite", Kind: DeviceKind.Gamepad);
+    var xboxElite = new DeviceCardViewModel(xboxEliteDevice, registry.Describe(xboxEliteDevice));
+    xboxElite.AddLocalProfile();
+    Assert(xboxElite.CanManageDeviceProfiles && xboxElite.LocalProfiles.Count == 2 && xboxElite.CanDeleteLocalProfile,
+        "la ficha Elite permite crear perfiles locales para preparar configuraciones distintas");
+    var xboxDesktopProfile = new DeviceLocalProfile { Name = "Escritorio", LeftStickMacroThresholdPercent = 70 };
+    var xboxGameProfile = new DeviceLocalProfile
+    {
+        Name = "FC27", ApplicationExecutable = @"C:\Games\FC27.exe", LeftStickMacroThresholdPercent = 20
+    };
+    var xboxProfilesCard = new DeviceCardViewModel(xboxEliteDevice, registry.Describe(xboxEliteDevice),
+        localProfiles: [xboxDesktopProfile, xboxGameProfile], activeProfileId: xboxDesktopProfile.Id);
+    var xboxProfileTracker = new XboxMacroInputTracker();
+    var smallStickGesture = new XboxMacroInputState(0, 0, 0, 8_000, 0, 0, 0);
+    var desktopProfileTransitions = xboxProfileTracker.Update(smallStickGesture, xboxProfilesCard.LocalProfile);
+    var switchedToGame = xboxProfilesCard.SelectProfileForApplication(@"c:\games\fc27.exe");
+    var gameProfileTransitions = xboxProfileTracker.Update(smallStickGesture, xboxProfilesCard.LocalProfile);
+    Assert(desktopProfileTransitions.Count == 0 && switchedToGame && xboxProfilesCard.LocalProfile == xboxGameProfile &&
+        gameProfileTransitions.Single() == new XboxMacroInputTransition(MacroTrigger.XboxLeftStickRight, true),
+        "el perfil local del Elite cambia con FC27 y ajusta el gesto que activa una macro");
     var yeti = registry.Describe(new HardwareDevice("yeti", "Blue Microphones", "Yeti Classic", 0xB58E, 0x9E84,
         "USB Audio", 0, "", ModelKey: "blue-yeti-classic", Kind: DeviceKind.Microphone));
-    var keyboard = registry.Describe(new HardwareDevice("ak820", "AJAZZ", "AK820", 0x0C45, 0x8006,
+    var keyboard = registry.Describe(new HardwareDevice("ak820", "AJAZZ", "AK820", 0x0C45, 0x8009,
         "USB/HID", 1, "", ModelKey: "ajazz-ak820", Kind: DeviceKind.Keyboard));
+    var unrelatedAjazz = registry.Describe(new HardwareDevice("other-ajazz", "AJAZZ / Microdia", "Dispositivo USB", 0x0C45, 0x8006,
+        "USB/HID", 1, "", ModelKey: "hid-0C45-8006", Kind: DeviceKind.Keyboard));
     Assert(astro.Brand == "ASTRO" && logitech.Brand == "LOGITECH G" &&
         !logitech.DisplayName.Contains("SUPERLIGHT", StringComparison.OrdinalIgnoreCase) &&
         proWireless.DisplayName == "PRO WIRELESS" && xbox.Brand == "XBOX" &&
-        yeti.Brand == "BLUE" && keyboard.Brand == "AJAZZ",
-        "los modelos piloto seleccionan su adaptador correspondiente");
+        yeti.Brand == "BLUE" && keyboard.Brand == "AJAZZ" && unrelatedAjazz.DisplayName == "Dispositivo USB" &&
+        unrelatedAjazz.Capabilities.Single().Name == "Inventario",
+        "los modelos piloto seleccionan su adaptador y un VID compartido no identifica otro HID como AK820");
     var descriptorDetail = proWireless.Capabilities.Single(item => item.Name == "Descriptor HID").Detail;
     Assert(descriptorDetail.Contains("FF00/0002", StringComparison.Ordinal) &&
         descriptorDetail.Contains("no confirman funciones HID++", StringComparison.Ordinal),
         "la ficha Logitech incluye datos del descriptor sin afirmar compatibilidad HID++");
+    Assert(!new DeviceCardViewModel(proWirelessDevice, proWireless).ShowNoAudioEndpointsMessage &&
+        new DeviceCardViewModel(new HardwareDevice("yeti", "Blue Microphones", "Yeti Classic", 0xB58E, 0x9E84,
+            "USB Audio", 0, "", ModelKey: "blue-yeti-classic", Kind: DeviceKind.Microphone), yeti).ShowNoAudioEndpointsMessage,
+        "el mensaje de endpoint de audio no aparece en la ficha del ratón");
+    Assert(unconfirmedSuperlight.IsUnidentifiedLogitechMouse && unconfirmedSuperlight.HasLogitechMouseSettings &&
+        unconfirmedSuperlight.HasLocalEditor && unconfirmedSuperlight.CanManageDeviceProfiles &&
+        !unconfirmedSuperlight.IsLogitechDpiWritable && !unconfirmedSuperlight.CanSaveLogitechOnboardDpi &&
+        unconfirmedSuperlight.CanAddLogitechDpiStage,
+        "el C547 sin identificar muestra el editor común sin habilitar escrituras al ratón");
+    Assert(confirmedSuperlight.DisplayName == "PRO X SUPERLIGHT" &&
+        new DeviceCardViewModel(proWirelessDevice, proWireless).DisplayName == "PRO WIRELESS",
+        "las fichas identificadas muestran el nombre correcto de cada ratón Logitech");
+    Assert(confirmedSuperlight.IsLogitechDpiWritable && confirmedSuperlight.CanSaveLogitechOnboardDpi &&
+        !new DeviceCardViewModel(proWirelessDevice, proWireless).CanSaveLogitechOnboardDpi,
+        "el guardado integrado solo se muestra para el modelo cuyo perfil onboard está validado");
+    unconfirmedSuperlight.SelectedLogitechDpiValue = 1800;
+    var genericProfiles = Path.Combine(Path.GetTempPath(), "nexo-superlight-profile-check", Guid.NewGuid().ToString("N"));
+    try
+    {
+        var library = new DeviceLocalProfileLibrary(genericProfiles);
+        library.SaveSet(unconfirmedSuperlight.LocalProfileKey, unconfirmedSuperlight.LocalProfiles,
+            unconfirmedSuperlight.LocalProfile.Id);
+        Assert(library.HasSavedSet(unconfirmedSuperlight.LocalProfileKey) &&
+            library.Load(unconfirmedSuperlight.LocalProfileKey).Dpi1 == 1800,
+            "el perfil DPI del C547 sin identificar se guarda en Nexo con los mismos límites que los modelos confirmados");
+    }
+    finally
+    {
+        if (Directory.Exists(genericProfiles)) Directory.Delete(genericProfiles, recursive: true);
+    }
     var dpiCard = new DeviceCardViewModel(proWirelessDevice, proWireless);
     dpiCard.IsLogitechDpiStage3Selected = true;
     dpiCard.SelectedLogitechDpiValue = 1450;
@@ -477,15 +781,15 @@ static void CheckLogitechHidppMessages()
     Assert(LogitechHidppCapabilityReader.ComputeOnboardProfileChecksum(crcVector) == 0x29B1 &&
         LogitechHidppCapabilityReader.TryReadOnboardProfileDirectory(directorySector, 16, 5, out var directoryEntries) &&
         directoryEntries.Count == 5 && directoryEntries.Single(entry => entry.IsEnabled).Sector == 1 &&
-        LogitechHidppCapabilityReader.TryReadFormat4DpiTable(profileSector, out var defaultDpiIndex,
+        LogitechHidppCapabilityReader.TryReadBaseV1DpiTable(profileSector, out var defaultDpiIndex,
             out var storedStages) && defaultDpiIndex == 1 && storedStages.SequenceEqual(stagesExpected),
-        "se comprueba el checksum, el directorio de perfiles y las cinco etapas DPI little-endian de formato 4");
+        "se comprueba el checksum, el directorio y las cinco etapas DPI base-v1");
 
     profileSector[30] = 0x42;
     var checksumAfterSentinel = LogitechHidppCapabilityReader.ComputeOnboardProfileChecksum(profileSector);
     profileSector[^2] = (byte)(checksumAfterSentinel >> 8);
     profileSector[^1] = (byte)checksumAfterSentinel;
-    var updatedProfile = LogitechHidppCapabilityReader.BuildFormat4DpiProfile(
+    var updatedProfile = LogitechHidppCapabilityReader.BuildBaseV1DpiProfile(
         profileSector, [400, 800, 1300, 2000], 2);
     var startWrite = LogitechHidppCapabilityReader.BuildStartOnboardProfileWriteRequest(
         deviceIndex, 7, 1, 255, softwareId);
@@ -493,7 +797,7 @@ static void CheckLogitechHidppMessages()
     var writeData = LogitechHidppCapabilityReader.BuildOnboardProfileWriteDataRequest(
         deviceIndex, 7, writeChunk, softwareId);
     var endWrite = LogitechHidppCapabilityReader.BuildEndOnboardProfileWriteRequest(deviceIndex, 7, softwareId);
-    Assert(LogitechHidppCapabilityReader.TryReadFormat4DpiTable(updatedProfile, out var updatedDefault,
+    Assert(LogitechHidppCapabilityReader.TryReadBaseV1DpiTable(updatedProfile, out var updatedDefault,
             out var updatedStages) && updatedDefault == 2 &&
         updatedStages.Select(value => value ?? -1).SequenceEqual(new[] { 400, 800, 1300, 2000, -1 }) &&
         updatedProfile[30] == 0x42 &&
@@ -628,12 +932,17 @@ static void CheckLogitechHidppMessages()
         dpiValues[5] == 900 && dpiValues[^1] == 1300,
         "se valida la lista DPI y se expande una etapa codificada como rango con paso");
     var setDpiRequest = LogitechHidppCapabilityReader.BuildSetSensorDpiRequest(deviceIndex, 7, 0, 1600, softwareId);
+    var setDpiResponse = new byte[20];
+    setDpiResponse[0] = 0x11;
+    setDpiResponse[1] = deviceIndex;
+    setDpiResponse[2] = 7;
+    setDpiResponse[3] = 0x3A;
     Assert(setDpiRequest.Take(7).SequenceEqual(new byte[] { 0x11, deviceIndex, 7, 0x3A, 0, 0x06, 0x40 }) &&
-        LogitechHidppCapabilityReader.TryReadSetSensorDpiResponse(setDpiRequest, deviceIndex, 7, 0, 1600, softwareId),
-        "el setter DPI construye cabecera, sensor, valor big-endian y eco HID++ esperados");
-    setDpiRequest[6]++;
-    Assert(!LogitechHidppCapabilityReader.TryReadSetSensorDpiResponse(setDpiRequest, deviceIndex, 7, 0,
-        1600, softwareId), "se rechaza una confirmación del setter con valor distinto");
+        LogitechHidppCapabilityReader.TryReadSetSensorDpiResponse(setDpiResponse, deviceIndex, 7, softwareId),
+        "el setter DPI construye su solicitud y acepta una confirmación HID++ sin eco del valor");
+    setDpiResponse[3]++;
+    Assert(!LogitechHidppCapabilityReader.TryReadSetSensorDpiResponse(setDpiResponse, deviceIndex, 7, softwareId),
+        "se rechaza una confirmación del setter con función distinta");
     var batteryRequest = LogitechHidppCapabilityReader.BuildGetBatteryLevelStatusRequest(deviceIndex, 9, softwareId);
     var batteryResponse = new byte[20];
     batteryResponse[0] = 0x11;
@@ -800,13 +1109,13 @@ static async Task ProbeLogitechAsync()
 static async Task ProbeLogitechProfileMemoryAsync()
 {
     var candidates = new DeviceDiscoveryService().Scan()
-        .Where(device => device.VendorId == 0x046D && device.ProductId == 0xC547 &&
+        .Where(device => device.VendorId == 0x046D && device.ProductId is 0xC539 or 0xC547 &&
             (device.HidInterfaces ?? []).Any(item => item.UsagePage == 0xFF00 && item.Usage == 0x0002 &&
                 item.InputReportBytes == 20 && item.OutputReportBytes == 20))
         .ToArray();
     if (candidates.Length == 0)
     {
-        Console.WriteLine("No se encontró el receptor Lightspeed del PRO X SUPERLIGHT C547.");
+        Console.WriteLine("No se encontró ningún ratón Logitech compatible conectado.");
         return;
     }
 
@@ -815,19 +1124,20 @@ static async Task ProbeLogitechProfileMemoryAsync()
     {
         try
         {
-            var identity = (await reader.ReadDeviceIdentitiesAsync(device))
-                .FirstOrDefault(item => LogitechHidppCapabilityReader.ModelKeyFromDeviceName(item.DeviceName) ==
-                    "logitech-pro-x-superlight");
+            var identity = (await reader.ReadDeviceIdentitiesAsync(device)).FirstOrDefault(item =>
+                item.DeviceType == LogitechHidppCapabilityReader.HidppMouseDeviceType &&
+                LogitechHidppCapabilityReader.ModelKeyFromDeviceName(item.DeviceName) is not null);
             if (identity is null)
             {
-                Console.WriteLine("El receptor no confirmó el PRO X SUPERLIGHT en sus ranuras.");
+                Console.WriteLine($"{device.Product}: el ratón no respondió con un modelo confirmado.");
                 continue;
             }
 
+            var modelKey = LogitechHidppCapabilityReader.ModelKeyFromDeviceName(identity.DeviceName)!;
             var identifiedDevice = device with
             {
                 Product = identity.DeviceName,
-                ModelKey = "logitech-pro-x-superlight",
+                ModelKey = modelKey,
                 Kind = DeviceKind.Mouse,
                 IsAuxiliary = false
             };
@@ -839,7 +1149,7 @@ static async Task ProbeLogitechProfileMemoryAsync()
                     : "vacía"));
                 return $"sector {stored.Sector}{(profile.ActiveSector == stored.Sector ? " activo" : stored.IsEnabled ? " habilitado" : string.Empty)}: {stages} DPI";
             }));
-            Console.WriteLine($"PRO X SUPERLIGHT · modo {(profile.Mode == 1 ? "integrado" : "G HUB")} · formato {profile.Info.ProfileFormatId} · " +
+            Console.WriteLine($"{identity.DeviceName} · modo {(profile.Mode == 1 ? "integrado" : "G HUB")} · formato {profile.Info.ProfileFormatId} · " +
                 $"perfiles: {profiles} · DPI en vivo: {profile.LiveDpi?.ToString("N0") ?? "sin respuesta"} · " +
                 "checksums verificados · solo lectura (* = predeterminado)");
         }
@@ -853,7 +1163,7 @@ static async Task ProbeLogitechProfileMemoryAsync()
 static async Task SaveLogitechOnboardDpiAsync()
 {
     var candidates = new DeviceDiscoveryService().Scan()
-        .Where(device => device.VendorId == 0x046D && device.ProductId == 0xC547 &&
+        .Where(device => device.VendorId == 0x046D && device.ProductId is 0xC539 or 0xC547 &&
             (device.HidInterfaces ?? []).Any(item => item.UsagePage == 0xFF00 && item.Usage == 0x0002 &&
                 item.InputReportBytes == 20 && item.OutputReportBytes == 20))
         .ToArray();
@@ -863,20 +1173,25 @@ static async Task SaveLogitechOnboardDpiAsync()
         try
         {
             var identity = (await reader.ReadDeviceIdentitiesAsync(device)).FirstOrDefault(item =>
-                LogitechHidppCapabilityReader.ModelKeyFromDeviceName(item.DeviceName) == "logitech-pro-x-superlight");
+                item.DeviceType == LogitechHidppCapabilityReader.HidppMouseDeviceType &&
+                LogitechHidppCapabilityReader.ModelKeyFromDeviceName(item.DeviceName) is not null);
             if (identity is null) continue;
+            var modelKey = LogitechHidppCapabilityReader.ModelKeyFromDeviceName(identity.DeviceName)!;
             var identified = device with
             {
-                Product = identity.DeviceName, ModelKey = "logitech-pro-x-superlight",
+                Product = identity.DeviceName, ModelKey = modelKey,
                 Kind = DeviceKind.Mouse, IsAuxiliary = false
             };
-            var profile = new DeviceLocalProfileLibrary().Load("logitech-pro-x-superlight");
+            var profile = new DeviceLocalProfileLibrary().Load(modelKey);
             var stages = new[] { profile.Dpi1, profile.Dpi2, profile.Dpi3, profile.Dpi4, profile.Dpi5 }
                 .Take(Math.Clamp(profile.DpiStageCount, 1, 5)).ToArray();
             var defaultIndex = (byte)(Math.Clamp(profile.ActiveDpiStage, 1, stages.Length) - 1);
-            Console.WriteLine($"Guardando {string.Join(", ", stages)} DPI; etapa activa: {stages[defaultIndex]} DPI…");
+            var before = (await reader.ReadOnboardProfilesAsync(identified)).LiveDpi;
+            if (before is int currentDpi && Array.IndexOf(stages, currentDpi) is var matchingStage && matchingStage >= 0)
+                defaultIndex = (byte)matchingStage;
+            Console.WriteLine($"{identity.DeviceName}: guardando {string.Join(", ", stages)} DPI; se conserva {stages[defaultIndex]} DPI…");
             var result = await reader.SaveOnboardDpiStagesAsync(identified, stages, defaultIndex);
-            var live = await reader.SetCurrentDpiAsync(identified, stages[defaultIndex]);
+            var live = await reader.SetCurrentDpiAsync(identified, before ?? stages[defaultIndex]);
             Console.WriteLine($"Confirmado por lectura: sector {result.Sector}, {string.Join(", ", result.DpiStages)} DPI, predeterminado {stages[result.DefaultDpiIndex]} DPI; sensor actual {live} DPI.");
             return;
         }
@@ -886,7 +1201,7 @@ static async Task SaveLogitechOnboardDpiAsync()
             return;
         }
     }
-    Console.WriteLine("No se encontró un PRO X SUPERLIGHT conectado y confirmado; no se escribió nada.");
+    Console.WriteLine("No se encontró un ratón Logitech compatible conectado y confirmado; no se escribió nada.");
 }
 
 static async Task ProbeLogitechPairingAsync()
@@ -982,6 +1297,13 @@ static void CheckMacroBindingLabels()
 
 static void CheckXboxMacroInputEdges()
 {
+    var centeredPreview = XboxInputViewModel.GetStickPreviewOffset(0, 0);
+    var upPreview = XboxInputViewModel.GetStickPreviewOffset(0, short.MaxValue);
+    var diagonalPreview = XboxInputViewModel.GetStickPreviewOffset(short.MaxValue, short.MaxValue);
+    Assert(centeredPreview == (0, 0) && upPreview == (0, -350) &&
+        Math.Abs(Math.Sqrt(diagonalPreview.X * diagonalPreview.X + diagonalPreview.Y * diagonalPreview.Y) - 350) < 0.1,
+        "la previsualización mueve el stick desde el centro y limita las diagonales al radio visible");
+
     var directions = new (short X, short Y, MacroTrigger Left, MacroTrigger Right)[]
     {
         (0, 32767, MacroTrigger.XboxLeftStickUp, MacroTrigger.XboxRightStickUp),
@@ -1003,7 +1325,30 @@ static void CheckXboxMacroInputEdges()
 
     var controls = XboxMacroInputTracker.GetPressedTriggers(new(0x1000, 128, 127, 0, 0, 0, 0));
     Assert(controls.SetEquals([MacroTrigger.XboxA, MacroTrigger.XboxLeftTrigger]),
-        "los botones y gatillos XInput tienen umbrales de pulsación consistentes");
+        "el perfil predeterminado conserva el umbral original de los gatillos XInput");
+    var triggerRange = XboxMacroInputTracker.GetPressedTriggers(new(0, 153, 127, 0, 0, 0, 0),
+        leftTriggerStart: 2, leftTriggerEnd: 10, rightTriggerStart: 0, rightTriggerEnd: 10);
+    Assert(triggerRange.SetEquals([MacroTrigger.XboxLeftTrigger]),
+        "el perfil del mando ajusta el umbral LT de sus macros y mantiene el de RT");
+    var narrowTriggerRange = XboxMacroInputTracker.GetPressedTriggers(new(0, 102, 101, 0, 0, 0, 0),
+        leftTriggerStart: 0, leftTriggerEnd: 8, rightTriggerStart: 0, rightTriggerEnd: 10);
+    Assert(narrowTriggerRange.Contains(MacroTrigger.XboxLeftTrigger) && !narrowTriggerRange.Contains(MacroTrigger.XboxRightTrigger),
+        "el margen final del gatillo también modifica el disparo local de macros");
+
+    var belowStickThreshold = XboxMacroInputTracker.GetPressedTriggers(new(0, 0, 0, 15_999, 0, 0, 0));
+    var atStickThreshold = XboxMacroInputTracker.GetPressedTriggers(new(0, 0, 0, 16_000, 0, 0, 0));
+    var relaxedStickThreshold = XboxMacroInputTracker.GetPressedTriggers(new(0, 0, 0, 8_000, 0, 0, 0),
+        leftStickMacroThresholdPercent: 20);
+    var strictStickThreshold = XboxMacroInputTracker.GetPressedTriggers(new(0, 0, 0, 20_000, 0, 0, 0),
+        leftStickMacroThresholdPercent: 70);
+    Assert(!belowStickThreshold.Contains(MacroTrigger.XboxLeftStickRight) &&
+        atStickThreshold.Contains(MacroTrigger.XboxLeftStickRight) &&
+        relaxedStickThreshold.Contains(MacroTrigger.XboxLeftStickRight) &&
+        !strictStickThreshold.Contains(MacroTrigger.XboxLeftStickRight),
+        "el umbral del stick ajusta cuándo se dispara una macro y conserva el valor predeterminado");
+    var localProfile = new DeviceLocalProfile { LeftStickMacroThresholdPercent = 5, RightStickMacroThresholdPercent = 95 };
+    Assert(localProfile.LeftStickMacroThresholdPercent == 10 && localProfile.RightStickMacroThresholdPercent == 90,
+        "los límites de sensibilidad de macros se recortan al rango permitido");
 
     var tracker = new XboxMacroInputTracker();
     var upState = new XboxMacroInputState(0, 0, 0, 0, 32767, 0, 0);

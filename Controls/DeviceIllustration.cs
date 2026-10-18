@@ -10,7 +10,7 @@ public sealed class DeviceIllustration : FrameworkElement
     public static readonly DependencyProperty KindProperty = DependencyProperty.Register(
         nameof(Kind), typeof(string), typeof(DeviceIllustration), new FrameworkPropertyMetadata("Generic", FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty AccentProperty = DependencyProperty.Register(
-        nameof(Accent), typeof(Brush), typeof(DeviceIllustration), new FrameworkPropertyMetadata(Brushes.MediumTurquoise, FrameworkPropertyMetadataOptions.AffectsRender));
+        nameof(Accent), typeof(Brush), typeof(DeviceIllustration), new FrameworkPropertyMetadata(new SolidColorBrush(Color.FromRgb(0, 120, 212)), FrameworkPropertyMetadataOptions.AffectsRender));
 
     public string Kind { get => (string)GetValue(KindProperty); set => SetValue(KindProperty, value); }
     public Brush Accent { get => (Brush)GetValue(AccentProperty); set => SetValue(AccentProperty, value); }
@@ -19,15 +19,15 @@ public sealed class DeviceIllustration : FrameworkElement
     {
         base.OnRender(drawingContext);
         if (ActualWidth <= 0 || ActualHeight <= 0) return;
-        drawingContext.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(28, 41, 49)), null,
+        drawingContext.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(37, 37, 37)), null,
             new Rect(0, 0, ActualWidth, ActualHeight), 14, 14);
         var scale = Math.Min((ActualWidth - 12) / 160, (ActualHeight - 12) / 100);
         if (scale <= 0) return;
         drawingContext.PushTransform(new TranslateTransform((ActualWidth - 160 * scale) / 2, (ActualHeight - 100 * scale) / 2));
         drawingContext.PushTransform(new ScaleTransform(scale, scale));
-        var shell = new SolidColorBrush(Color.FromRgb(67, 83, 91));
-        var dark = new SolidColorBrush(Color.FromRgb(22, 31, 37));
-        var line = new Pen(new SolidColorBrush(Color.FromRgb(166, 183, 188)), 2.2) { LineJoin = PenLineJoin.Round };
+        var shell = new SolidColorBrush(Color.FromRgb(65, 65, 65));
+        var dark = new SolidColorBrush(Color.FromRgb(32, 32, 32));
+        var line = new Pen(new SolidColorBrush(Color.FromRgb(181, 181, 181)), 2.2) { LineJoin = PenLineJoin.Round };
         var accentPen = new Pen(Accent, 3) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
         switch (Kind)
         {

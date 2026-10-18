@@ -5,19 +5,98 @@
         xmlns:converters="clr-namespace:NexoHub.Converters"
         xmlns:controls="clr-namespace:NexoHub.Controls"
         Title="Nexo · Device Hub" Height="820" Width="1360"
+        Icon="Assets/Brand/NexoHub.ico"
         MinHeight="700" MinWidth="1080"
         WindowStartupLocation="CenterScreen"
-        Background="#111A20" Foreground="#E5EDF0"
+        PreviewKeyDown="WindowPreviewKeyDown"
+        Background="#1F1F1F" Foreground="#FFFFFF"
         FontFamily="Segoe UI Variable Text">
     <Window.Resources>
-        <SolidColorBrush x:Key="Canvas" Color="#111A20" />
-        <SolidColorBrush x:Key="Panel" Color="#1D2931" />
-        <SolidColorBrush x:Key="PanelRaised" Color="#24343D" />
-        <SolidColorBrush x:Key="Signal" Color="#53D6C2" />
-        <SolidColorBrush x:Key="Calibration" Color="#F0A35E" />
-        <SolidColorBrush x:Key="TextMain" Color="#E5EDF0" />
-        <SolidColorBrush x:Key="TextMuted" Color="#93A5AC" />
-        <SolidColorBrush x:Key="Line" Color="#31434D" />
+        <SolidColorBrush x:Key="Canvas" Color="#1F1F1F" />
+        <SolidColorBrush x:Key="Panel" Color="#2D2D2D" />
+        <SolidColorBrush x:Key="PanelRaised" Color="#383838" />
+        <SolidColorBrush x:Key="Signal" Color="#0078D4" />
+        <SolidColorBrush x:Key="XboxBlue" Color="#0078D4" />
+        <Style x:Key="XboxFlatButton" TargetType="Button">
+            <Setter Property="Background" Value="#303030" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#414141" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="XboxButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="XboxButtonSurface" Property="Background" Value="#3A3A3A" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="XboxButtonSurface" Property="Opacity" Value="0.45" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="XboxPrimaryButton" TargetType="Button" BasedOn="{StaticResource XboxFlatButton}">
+            <Setter Property="Background" Value="{StaticResource XboxBlue}" />
+            <Setter Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="XboxTriggerHandleSlider" TargetType="Slider">
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                                   Value="{TemplateBinding Value}" Orientation="Horizontal" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0" Focusable="False" IsTabStop="False" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb><Thumb Width="5" Height="20" Background="White" BorderThickness="0" /></Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0" Focusable="False" IsTabStop="False" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="XboxBrightnessSliderStyle" TargetType="Slider">
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Border Height="12" CornerRadius="6" VerticalAlignment="Center">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                        <GradientStop Color="#111111" Offset="0" />
+                                        <GradientStop Color="#FFFFFF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                                   Value="{TemplateBinding Value}" Orientation="Horizontal" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0" Focusable="False" IsTabStop="False" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb><Thumb Width="6" Height="24" Background="White" BorderThickness="0" /></Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0" Focusable="False" IsTabStop="False" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <SolidColorBrush x:Key="Calibration" Color="#0078D4" />
+        <SolidColorBrush x:Key="TextMain" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="TextMuted" Color="#B3B3B3" />
+        <SolidColorBrush x:Key="Line" Color="#4A4A4A" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <converters:InverseBooleanConverter x:Key="InverseBoolConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
@@ -37,11 +116,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="NavBorder" Property="Background" Value="#24343D" />
+                                <Setter TargetName="NavBorder" Property="Background" Value="#383838" />
                                 <Setter Property="Foreground" Value="{StaticResource TextMain}" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="NavBorder" Property="Background" Value="#202E36" />
+                                <Setter TargetName="NavBorder" Property="Background" Value="#2A2A2A" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -50,7 +129,7 @@
         </Style>
 
         <Style x:Key="ActionButton" TargetType="Button">
-            <Setter Property="Foreground" Value="#111A20" />
+            <Setter Property="Foreground" Value="#1F1F1F" />
             <Setter Property="Background" Value="{StaticResource Signal}" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Bold" />
@@ -104,16 +183,24 @@
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleX" To="1.025" Duration="0:0:0.14" />
-                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleY" To="1.025" Duration="0:0:0.14" />
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleX" To="1.02" Duration="0:0:0.20">
+                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleY" To="1.02" Duration="0:0:0.20">
+                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </Trigger.EnterActions>
                                 <Trigger.ExitActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.14" />
-                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.14" />
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </Trigger.ExitActions>
@@ -139,7 +226,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="StageSurface" Background="#202326" BorderBrush="#393B3D"
+                        <Border x:Name="StageSurface" Background="#222222" BorderBrush="#3A3A3A"
                                 BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -148,9 +235,9 @@
                                 <Setter TargetName="StageSurface" Property="Background" Value="#292B2D" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="StageSurface" Property="Background" Value="#29260F" />
-                                <Setter TargetName="StageSurface" Property="BorderBrush" Value="#F5C400" />
-                                <Setter Property="Foreground" Value="#F5D84C" />
+                                <Setter TargetName="StageSurface" Property="Background" Value="#3A3A3A" />
+                                <Setter TargetName="StageSurface" Property="BorderBrush" Value="#0078D4" />
+                                <Setter Property="Foreground" Value="#3A9DF4" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="StageSurface" Property="BorderThickness" Value="2" />
@@ -180,12 +267,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#2A3A43" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#383838" />
                                 <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource Signal}" />
                                 <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#25343C" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#303030" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -193,13 +280,13 @@
             </Setter>
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#172229" />
+            <Setter Property="Background" Value="#252525" />
             <Setter Property="Foreground" Value="{StaticResource TextMain}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line}" />
             <Setter Property="CaretBrush" Value="{StaticResource Signal}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="8,6" />
-            <Setter Property="SelectionBrush" Value="#536D76" />
+            <Setter Property="SelectionBrush" Value="#666666" />
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="{StaticResource PanelRaised}" />
@@ -286,10 +373,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#30464F" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#444444" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#34524F" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#4B4B4B" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
@@ -301,20 +388,18 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid x:Name="NexoRootGrid" Margin="16">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="226" />
-            <ColumnDefinition Width="24" />
+            <ColumnDefinition x:Name="NexoNavigationColumn" Width="226" />
+            <ColumnDefinition x:Name="NexoNavigationGap" Width="24" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="#172229" CornerRadius="18" Padding="18">
+        <Border x:Name="NexoNavigation" Grid.Column="0" Background="#252525" CornerRadius="18" Padding="18">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top">
                     <StackPanel Orientation="Horizontal" Margin="4,5,0,32">
-                        <Border Width="34" Height="34" CornerRadius="10" Background="{StaticResource Signal}" VerticalAlignment="Center">
-                            <TextBlock Text="N" Foreground="#111A20" FontWeight="Black" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Image Source="/Assets/Brand/NexoHub.png" Width="36" Height="36" Stretch="Uniform" VerticalAlignment="Center" />
                         <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="Nexo" FontSize="21" FontWeight="Bold" Foreground="{StaticResource TextMain}" />
                             <TextBlock Text="DEVICE HUB" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}" />
@@ -323,10 +408,10 @@
                     <TextBlock Text="Tu espacio" Margin="12,0,0,8" FontSize="11" Foreground="{StaticResource TextMuted}" />
                     <RadioButton x:Name="DevicesNav" GroupName="Navigation" Tag="Devices" IsChecked="True" Checked="Navigate" Style="{StaticResource NavOption}" Content="Dispositivos" />
                     <RadioButton GroupName="Navigation" Tag="Profiles" Checked="Navigate" Style="{StaticResource NavOption}" Content="Perfiles" />
-                    <RadioButton GroupName="Navigation" Tag="Macros" Checked="Navigate" Style="{StaticResource NavOption}" Content="Macros" />
+                    <RadioButton x:Name="MacrosNav" GroupName="Navigation" Tag="Macros" Checked="Navigate" Style="{StaticResource NavOption}" Content="Macros" />
                 </StackPanel>
 
-                <Border DockPanel.Dock="Bottom" Background="#1D2931" CornerRadius="12" Padding="13" Margin="0,20,0,0">
+                <Border DockPanel.Dock="Bottom" Background="#2D2D2D" CornerRadius="12" Padding="13" Margin="0,20,0,0">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="8" Height="8" Fill="{StaticResource Signal}" VerticalAlignment="Center" />
@@ -338,14 +423,14 @@
             </DockPanel>
         </Border>
 
-        <Grid Grid.Column="2">
+        <Grid x:Name="NexoPages" Grid.Column="2">
             <Grid x:Name="DevicesPage">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="18" />
+                    <RowDefinition x:Name="DevicesPageHeaderGap" Height="18" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <Grid Grid.Row="0">
+                <Grid x:Name="DevicesPageHeader" Grid.Row="0">
                     <StackPanel>
                         <TextBlock x:Name="DevicesPageTitle" Text="Tus dispositivos" FontSize="29" FontWeight="Bold" />
                         <TextBlock x:Name="DevicesPageSubtitle" Text="Una vista para el equipo que usas." Margin="0,5,0,0" Foreground="{StaticResource TextMuted}" FontSize="14" />
@@ -372,7 +457,7 @@
                                     Padding="10,7" HorizontalAlignment="Right"
                                     Visibility="{Binding HasAuxiliaryDevices, Converter={StaticResource BoolToVisibility}}" />
                         </Grid>
-                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ScrollViewer x:Name="DeviceCardsScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <Grid>
                                 <ItemsControl ItemsSource="{Binding Devices}">
                                     <ItemsControl.ItemsPanel>
@@ -394,17 +479,25 @@
                                                     </Grid.RowDefinitions>
                                                     <TextBlock Text="{Binding DisplayName}" FontSize="19" FontWeight="Bold" TextWrapping="Wrap" />
                                                     <TextBlock Grid.Row="1" Text="{Binding Brand}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" Margin="0,4,0,0" />
-                                                    <controls:DeviceIllustration Grid.Row="2" Width="190" Height="165" Kind="{Binding VisualKind}"
-                                                                                 Accent="{StaticResource Signal}" VerticalAlignment="Center" />
+                                                    <Border Grid.Row="2" Background="#252525" CornerRadius="12" Margin="0,12,0,8">
+                                                        <Grid>
+                                                            <Image Source="{Binding ProductImageSource}" Width="220" Height="190" Margin="12"
+                                                                   Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
+                                                                   Visibility="{Binding HasProductImage, Converter={StaticResource BoolToVisibility}}" />
+                                                            <controls:DeviceIllustration Width="190" Height="165" Kind="{Binding VisualKind}"
+                                                                                        Accent="{StaticResource Signal}" VerticalAlignment="Center"
+                                                                                        Visibility="{Binding HasProductImage, Converter={StaticResource InverseBoolToVisibility}}" />
+                                                        </Grid>
+                                                    </Border>
                                                     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,4,0,14">
                                                         <TextBlock Text="{Binding Status}" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center" />
-                                                        <Border Background="#24343D" CornerRadius="7" Padding="8,5" Margin="10,0,0,0">
+                                                        <Border Background="#383838" CornerRadius="7" Padding="8,5" Margin="10,0,0,0">
                                                             <TextBlock Text="{Binding Transport}" FontSize="10" />
                                                         </Border>
                                                     </StackPanel>
                                                     <Grid Grid.Row="4">
-                                                        <TextBlock Text="Configuración del dispositivo" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" />
-                                                        <TextBlock Text="Abrir ajustes  →" Foreground="{StaticResource Signal}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                        <TextBlock Text="Ajustes disponibles" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Configurar  →" Foreground="{StaticResource Signal}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" />
                                                     </Grid>
                                                 </Grid>
                                             </Button>
@@ -422,53 +515,8 @@
                     </Grid>
 
                     <Grid x:Name="DeviceSettingsView" Visibility="Collapsed" Opacity="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300" />
-                        <ColumnDefinition Width="18" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" Background="{StaticResource Panel}" CornerRadius="16" Padding="14">
-                        <DockPanel>
-                            <StackPanel DockPanel.Dock="Top" Margin="4,3,4,12">
-                                <TextBlock Text="Conectados" FontSize="15" FontWeight="Bold" />
-                                <TextBlock Text="{Binding ScanStatus}" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,5,0,0" TextWrapping="Wrap" />
-                                <Button Content="{Binding AuxiliaryButtonLabel}" Click="ToggleAuxiliary" Style="{StaticResource QuietButton}"
-                                        Margin="0,10,0,0" HorizontalAlignment="Left" Padding="10,7"
-                                        Visibility="{Binding HasAuxiliaryDevices, Converter={StaticResource BoolToVisibility}}" />
-                            </StackPanel>
-                            <Grid>
-                                <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="92" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <controls:DeviceIllustration Width="82" Height="58" Kind="{Binding VisualKind}" Accent="{StaticResource Signal}" />
-                                                <StackPanel Grid.Column="1" Margin="10,2,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding Brand}" Foreground="{StaticResource Signal}" FontSize="9" FontWeight="Bold" Margin="0,3,0,0" />
-                                                    <TextBlock Text="{Binding HardwareId}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,3,0,0" />
-                                                    <TextBlock Text="{Binding LogitechConnectionStatus}" Foreground="{StaticResource TextMuted}" FontSize="9" Margin="0,3,0,0"
-                                                               Visibility="{Binding IsLogitechHidppCandidate, Converter={StaticResource BoolToVisibility}}"
-                                                               ToolTip="Activo significa que el ratón respondió. Si no responde, puede estar en reposo, apagado o fuera de alcance." />
-                                                </StackPanel>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="215"
-                                            Visibility="{Binding HasNoDevices, Converter={StaticResource BoolToVisibility}}">
-                                    <TextBlock Text="Aún no aparece ningún dispositivo" TextAlignment="Center" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                    <TextBlock Text="Conecta un equipo por USB o Bluetooth. Nexo lo buscará automáticamente." TextAlignment="Center" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Grid>
-                        </DockPanel>
-                    </Border>
-
-                    <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="16" Padding="20">
+                    <Border Background="{StaticResource Panel}" CornerRadius="16" Padding="24"
+                            Visibility="{Binding SelectedDevice.IsXboxElite, Converter={StaticResource InverseBoolToVisibility}}">
                         <Grid>
                           <Grid Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVisibility}}">
                             <Grid.RowDefinitions>
@@ -483,35 +531,46 @@
                                     <ColumnDefinition Width="190" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <controls:DeviceIllustration Grid.Column="0" Width="174" Height="112" Kind="{Binding SelectedDevice.VisualKind}" Accent="{StaticResource Signal}" />
+                                <Image Grid.Column="0" Source="{Binding SelectedDevice.ProductImageSource}" Width="174" Height="112"
+                                       Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
+                                       Visibility="{Binding SelectedDevice.HasProductImage, Converter={StaticResource BoolToVisibility}}" />
+                                <controls:DeviceIllustration Grid.Column="0" Width="174" Height="112" Kind="{Binding SelectedDevice.VisualKind}"
+                                                             Accent="{StaticResource Signal}"
+                                                             Visibility="{Binding SelectedDevice.HasProductImage, Converter={StaticResource InverseBoolToVisibility}}" />
                                 <StackPanel Grid.Column="1" Margin="18,2,0,0" VerticalAlignment="Center" MaxWidth="610">
-                                    <TextBlock Text="{Binding SelectedDevice.Brand}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding SelectedDevice.Brand}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold"
+                                               Visibility="{Binding SelectedDevice.HasLogitechMouseSettings, Converter={StaticResource InverseBoolToVisibility}}" />
                                     <TextBlock Text="{Binding SelectedDevice.DisplayName}" FontSize="26" FontWeight="Bold" Margin="0,3,0,0" />
-                                    <TextBlock Text="{Binding SelectedDevice.Description}" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,6,100,0" TextWrapping="Wrap" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <Border Background="#24343D" CornerRadius="8" Padding="9,6" Margin="0,0,7,0">
+                                    <TextBlock Text="{Binding SelectedDevice.Description}" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,6,100,0" TextWrapping="Wrap"
+                                               Visibility="{Binding SelectedDevice.HasLogitechMouseSettings, Converter={StaticResource InverseBoolToVisibility}}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
+                                                Visibility="{Binding SelectedDevice.IsMouse, Converter={StaticResource InverseBoolToVisibility}}">
+                                        <Border Background="#383838" CornerRadius="8" Padding="9,6" Margin="0,0,7,0">
                                             <TextBlock Text="{Binding SelectedDevice.HardwareId}" FontFamily="Segoe UI Mono" FontSize="10" />
                                         </Border>
-                                        <Border Background="#24343D" CornerRadius="8" Padding="9,6">
+                                        <Border Background="#383838" CornerRadius="8" Padding="9,6">
                                             <TextBlock Text="{Binding SelectedDevice.Transport}" FontSize="10" />
                                         </Border>
                                     </StackPanel>
                                 </StackPanel>
-                                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#23433F" CornerRadius="12" Padding="10,6">
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#3A3A3A" CornerRadius="12" Padding="10,6">
                                     <TextBlock Text="{Binding SelectedDevice.Status}" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="SemiBold" />
                                 </Border>
                             </Grid>
 
-                            <TextBlock Grid.Row="2" Text="{Binding SelectedDevice.InterfaceSummary}" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center" />
+                            <TextBlock Grid.Row="2" Text="{Binding SelectedDevice.InterfaceSummary}" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center"
+                                       Visibility="{Binding SelectedDevice.IsMouse, Converter={StaticResource InverseBoolToVisibility}}" />
 
                             <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel>
-                                    <Border Background="#202E36" CornerRadius="13" Padding="16" Margin="0,0,0,12">
+                                    <Border Background="#2A2A2A" CornerRadius="13" Padding="16" Margin="0,0,0,12">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding SelectedDevice.SettingsTitle}" FontSize="17" FontWeight="Bold" />
-                                            <TextBlock Text="{Binding SelectedDevice.SettingsSummary}" Foreground="{StaticResource TextMuted}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,12" />
-                                            <Border Background="#17191B" BorderBrush="#35383A" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,9"
-                                                    Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{Binding SelectedDevice.SettingsTitle}" FontSize="17" FontWeight="Bold"
+                                                       Visibility="{Binding SelectedDevice.ShowGenericSettingsHeader, Converter={StaticResource BoolToVisibility}}" />
+                                            <TextBlock Text="{Binding SelectedDevice.SettingsSummary}" Foreground="{StaticResource TextMuted}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,12"
+                                                       Visibility="{Binding SelectedDevice.ShowGenericSettingsHeader, Converter={StaticResource BoolToVisibility}}" />
+                                            <Border Background="#252525" BorderBrush="#353535" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.HasLogitechMouseSettings, Converter={StaticResource BoolToVisibility}}">
                                                 <Border.Triggers>
                                                     <EventTrigger RoutedEvent="MouseEnter">
                                                         <BeginStoryboard>
@@ -533,136 +592,79 @@
                                                         <ColumnDefinition Width="3" />
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <Border x:Name="LogitechAccent" Background="#F5C400" CornerRadius="2" Opacity="0.55" Margin="0,2,0,2" />
+                                                    <Border x:Name="LogitechAccent" Background="#0078D4" CornerRadius="2" Opacity="0.55" Margin="0,2,0,2" />
                                                     <StackPanel Grid.Column="1" Margin="13,0,0,0">
                                                         <Grid>
                                                             <StackPanel>
-                                                                <TextBlock Text="{Binding SelectedDevice.LogitechProfileTitle}" Foreground="#F5C400" FontSize="10" FontWeight="Bold" />
-                                                                <TextBlock Text="Sensibilidad (DPI)" FontSize="19" FontWeight="SemiBold" Margin="0,3,0,0" />
+                                                                <TextBlock Text="DPI" FontSize="19" FontWeight="SemiBold" />
                                                             </StackPanel>
-                                                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#29260F" CornerRadius="8" Padding="8,5">
-                                                                <TextBlock Text="PERFIL NEXO" Foreground="#F5D84C" FontSize="9" FontWeight="Bold" />
-                                                            </Border>
                                                         </Grid>
-                                                        <TextBlock Text="{Binding SelectedDevice.LogitechDpiRange}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,3,0,10" />
+                                                        <TextBlock Text="Modelo por confirmar. El perfil está listo y podrás aplicar los DPI cuando se reconozca."
+                                                                   Foreground="{StaticResource Calibration}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8"
+                                                                   Visibility="{Binding SelectedDevice.IsUnidentifiedLogitechMouse, Converter={StaticResource BoolToVisibility}}" />
                                                         <UniformGrid Columns="5">
                                                             <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage1Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" AutomationProperties.Name="Seleccionar etapa DPI 1">
-                                                                <StackPanel><TextBlock Text="ETAPA 01" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage1Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                                <StackPanel><TextBlock Text="NIVEL 1" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage1Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
                                                             <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage2Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage2, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Seleccionar etapa DPI 2">
-                                                                <StackPanel><TextBlock Text="ETAPA 02" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage2Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                                <StackPanel><TextBlock Text="NIVEL 2" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage2Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
                                                             <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage3Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage3, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Seleccionar etapa DPI 3">
-                                                                <StackPanel><TextBlock Text="ETAPA 03" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage3Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                                <StackPanel><TextBlock Text="NIVEL 3" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage3Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
                                                             <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage4Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage4, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Seleccionar etapa DPI 4">
-                                                                <StackPanel><TextBlock Text="ETAPA 04" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage4Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                                <StackPanel><TextBlock Text="NIVEL 4" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage4Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
                                                             <RadioButton GroupName="LogitechDpiStages" IsChecked="{Binding SelectedDevice.IsLogitechDpiStage5Selected, Mode=TwoWay}" Style="{StaticResource LogitechDpiStageButton}" Visibility="{Binding SelectedDevice.HasLogitechDpiStage5, Converter={StaticResource BoolToVisibility}}" Margin="0" AutomationProperties.Name="Seleccionar etapa DPI 5">
-                                                                <StackPanel><TextBlock Text="ETAPA 05" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage5Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
+                                                                <StackPanel><TextBlock Text="NIVEL 5" FontSize="9" /><TextBlock Text="{Binding SelectedDevice.LogitechDpiStage5Value, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0" /><TextBlock Text="DPI" FontSize="8" Foreground="{StaticResource TextMuted}" /></StackPanel>
                                                             </RadioButton>
                                                         </UniformGrid>
                                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                            <Button Content="Añadir etapa" Click="AddLogitechDpiStage" IsEnabled="{Binding SelectedDevice.CanAddLogitechDpiStage}" Style="{StaticResource QuietButton}" Padding="10,6" AutomationProperties.Name="Añadir etapa DPI" />
-                                                            <Button Content="Quitar etapa activa" Click="RemoveLogitechDpiStage" IsEnabled="{Binding SelectedDevice.CanRemoveLogitechDpiStage}" Style="{StaticResource QuietButton}" Padding="10,6" Margin="8,0,0,0" AutomationProperties.Name="Quitar etapa DPI activa" />
+                                                            <Button Content="Añadir nivel" Click="AddLogitechDpiStage" IsEnabled="{Binding SelectedDevice.CanAddLogitechDpiStage}" Style="{StaticResource QuietButton}" Padding="10,6" AutomationProperties.Name="Añadir nivel DPI" />
+                                                            <Button Content="Quitar nivel" Click="RemoveLogitechDpiStage" IsEnabled="{Binding SelectedDevice.CanRemoveLogitechDpiStage}" Style="{StaticResource QuietButton}" Padding="10,6" Margin="8,0,0,0" AutomationProperties.Name="Quitar nivel DPI" />
                                                         </StackPanel>
                                                         <Grid Margin="0,14,0,0">
-                                                            <TextBlock Text="{Binding SelectedDevice.LogitechDpiStageLabel}" FontSize="9" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding SelectedDevice.SelectedLogitechDpiValue, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="22" FontWeight="Bold" Foreground="#F5C400" />
+                                                                <TextBlock Text="{Binding SelectedDevice.SelectedLogitechDpiValue, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="22" FontWeight="Bold" Foreground="#0078D4" />
                                                                 <TextBlock Text="DPI" FontSize="10" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="6,0,0,3" />
                                                             </StackPanel>
                                                         </Grid>
                                                         <Slider Minimum="100" Maximum="25600" SmallChange="50" LargeChange="1000" TickFrequency="1000"
                                                                 IsSnapToTickEnabled="False" Value="{Binding SelectedDevice.SelectedLogitechDpiValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                Foreground="#F5C400" Margin="0,2,0,0" AutomationProperties.Name="DPI de la etapa activa"
+                                                                Foreground="#0078D4" Margin="0,2,0,0" AutomationProperties.Name="DPI de la etapa activa"
                                                                 AutomationProperties.HelpText="Modifica únicamente el perfil local de Nexo." />
                                                         <Grid Margin="0,-2,0,9">
                                                             <TextBlock Text="100 DPI" FontSize="9" Foreground="{StaticResource TextMuted}" />
                                                             <TextBlock Text="25.600 DPI" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right" />
                                                         </Grid>
-                                                        <Grid Margin="0,0,0,8">
-                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="DPI de G-Shift · local" FontSize="10" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" />
-                                                            <Slider x:Name="LogitechShiftDpi" Grid.Column="1" Minimum="100" Maximum="25600" SmallChange="50" LargeChange="1000"
-                                                                    Value="{Binding SelectedDevice.LocalProfile.ShiftDpi}" Margin="10,0"
-                                                                    AutomationProperties.Name="DPI del perfil local G-Shift" />
-                                                            <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=LogitechShiftDpi, StringFormat={}{0:N0}}" FontFamily="Segoe UI Mono" FontSize="11" VerticalAlignment="Center" />
-                                                        </Grid>
-                                                        <Grid Margin="0,10,0,0">
-                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <TextBlock Text="Polling rate" FontSize="11" VerticalAlignment="Center" />
-                                                                <ComboBox ItemsSource="{Binding ReportRates}" SelectedItem="{Binding SelectedDevice.LocalProfile.ReportRate}" Width="112" Margin="9,0,0,0" />
-                                                            </StackPanel>
-                                                            <Border Grid.Column="1" Background="#202326" CornerRadius="8" Padding="9,6" Margin="8,0,0,0">
-                                                                <StackPanel>
-                                                                    <TextBlock Text="MEMORIA INTEGRADA" Foreground="{StaticResource TextMuted}" FontSize="8" FontWeight="Bold" />
-                                                                    <TextBlock Text="Se confirma al guardar" Foreground="#F5C400" FontSize="10" FontWeight="SemiBold" Margin="0,2,0,0" />
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </Grid>
                                                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechDpiWritable, Converter={StaticResource BoolToVisibility}}">
-                                                            <Button Content="Aplicar DPI seleccionado al ratón" Click="ApplyLogitechDpi" IsEnabled="{Binding CanApplyLogitechDpi}" Style="{StaticResource ActionButton}" Padding="11,7" />
-                                                            <TextBlock Text="Cambio del sensor actual · lectura de vuelta · no guarda etapas" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
+                                                            <Button Content="Aplicar al ratón" Click="ApplyLogitechDpi" IsEnabled="{Binding CanApplyLogitechDpi}" Style="{StaticResource ActionButton}" Padding="11,7" />
                                                         </StackPanel>
-                                                        <Button Content="Guardar etapas y aplicar DPI activo" Click="SaveLogitechOnboardDpi"
+                                                        <TextBlock Text="{Binding SelectedDevice.LogitechProfileStorageStatus}" Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,6,0,0" />
+                                                            <Button Content="Guardar niveles en el ratón" Click="SaveLogitechOnboardDpi"
                                                                 IsEnabled="{Binding DataContext.CanSaveLogitechOnboardDpi, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                Visibility="{Binding SelectedDevice.IsLogitechProXSuperlight, Converter={StaticResource BoolToVisibility}}"
+                                                                Visibility="{Binding SelectedDevice.CanSaveLogitechOnboardDpi, Converter={StaticResource BoolToVisibility}}"
                                                                 Style="{StaticResource ActionButton}" Padding="11,7" Margin="0,8,0,0"
-                                                                AutomationProperties.HelpText="Guarda las etapas en la memoria del ratón, comprueba la lectura y aplica el DPI de la etapa activa." />
-                                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
-                                                            <Button Content="Consultar HID++" Click="ReadLogitechCapabilities" IsEnabled="{Binding DataContext.CanProbeLogitech, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource QuietButton}" Padding="10,7" />
-                                                            <TextBlock Text="Solo lectura · no modifica ajustes" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="9,0,0,0" />
-                                                        </StackPanel>
+                                                                AutomationProperties.HelpText="Guarda los niveles en el ratón y aplica el nivel activo." />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
-                                            <Border Background="#202E36" CornerRadius="10" Padding="12" Margin="0,0,0,9"
-                                                    Visibility="{Binding SelectedDevice.IsLogitechProWireless, Converter={StaticResource BoolToVisibility}}">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <StackPanel>
-                                                            <TextBlock Text="LIGHTSYNC · perfil local" Foreground="#F5C400" FontSize="10" FontWeight="Bold" />
-                                                            <TextBlock Text="Ciclo de espectro" FontSize="15" FontWeight="SemiBold" Margin="0,3,0,0" />
-                                                        </StackPanel>
-                                                        <CheckBox Content="Activado" IsChecked="{Binding SelectedDevice.LocalProfile.MouseLightingEnabled}"
-                                                                  HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="Iluminación LIGHTSYNC local activada" />
-                                                    </Grid>
-                                                    <TextBlock Text="G HUB muestra un ciclo de 8000 ms y brillo al 100 %. Estos valores se guardan en el perfil de Nexo; no se aplican al ratón." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,8" />
-                                                    <Grid IsEnabled="{Binding SelectedDevice.LocalProfile.MouseLightingEnabled}">
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                        <TextBlock Text="Brillo" FontSize="11" VerticalAlignment="Center" />
-                                                        <Slider x:Name="LogitechLightBrightness" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding SelectedDevice.LocalProfile.LightingBrightness}"
-                                                                Margin="10,0" AutomationProperties.Name="Brillo LIGHTSYNC del perfil local" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=LogitechLightBrightness, StringFormat={}{0:N0}%}" FontSize="11" VerticalAlignment="Center" />
-                                                    </Grid>
-                                                    <Grid Margin="0,7,0,0" IsEnabled="{Binding SelectedDevice.LocalProfile.MouseLightingEnabled}">
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                        <TextBlock Text="Duración del ciclo" FontSize="11" VerticalAlignment="Center" />
-                                                        <Slider x:Name="LogitechLightCycleDuration" Grid.Column="1" Minimum="100" Maximum="60000" SmallChange="100" LargeChange="1000"
-                                                                Value="{Binding SelectedDevice.LocalProfile.LightingCycleDurationMs}" Margin="10,0"
-                                                                AutomationProperties.Name="Duración local del ciclo LIGHTSYNC en milisegundos" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=LogitechLightCycleDuration, StringFormat={}{0:N0} ms}" FontSize="11" VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Background="#202E36" CornerRadius="10" Padding="12" Margin="0,0,0,9"
-                                                    Visibility="{Binding SelectedDevice.IsLogitechHidppCandidate, Converter={StaticResource BoolToVisibility}}">
+                                            <Border Background="#2A2A2A" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                                    Visibility="{Binding SelectedDevice.IsUnidentifiedLogitechMouse, Converter={StaticResource BoolToVisibility}}">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                                     <StackPanel>
-                                                        <TextBlock Text="Identidad del dispositivo emparejado" Foreground="#F5C400" FontSize="10" FontWeight="Bold" />
-                                                        <TextBlock Text="Lee nombre y tipo mediante HID++ para identificar ratones detrás de un receptor genérico. No cambia ajustes." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,12,0" />
+                                                        <TextBlock Text="No se pudo reconocer este ratón" Foreground="#0078D4" FontSize="11" FontWeight="Bold" />
+                                                        <TextBlock Text="Puedes preparar el perfil y volver a intentarlo." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,12,0" />
                                                     </StackPanel>
-                                                    <Button Grid.Column="1" Content="Leer identidad HID++" Click="ReadLogitechMouseIdentity" IsEnabled="{Binding CanIdentifyLogitech}" Style="{StaticResource QuietButton}" Padding="10,7" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Content="Reintentar" Click="ReadLogitechMouseIdentity" IsEnabled="{Binding CanIdentifyLogitech}" Style="{StaticResource QuietButton}" Padding="10,7" VerticalAlignment="Center" />
                                                 </Grid>
                                             </Border>
-                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                            <Border Background="#252525" CornerRadius="10" Padding="12" Margin="0,0,0,9"
                                                     Visibility="{Binding SelectedDevice.IsAjazzKeyboard, Converter={StaticResource BoolToVisibility}}">
                                                 <StackPanel>
                                                     <TextBlock Text="AJAZZ AK820 · perfil local de Nexo" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
-                                                    <TextBlock Text="El controlador AJAZZ ofrece ajustes por USB o 2.4 GHz y avisa de que Bluetooth no está soportado. Este teclado anuncia PID 8006; el paquete declara 8009/800A. Ningún valor de esta pantalla se envía al firmware." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,9" />
+                                                    <TextBlock Text="El controlador AJAZZ declara AK820 por USB (8009/800A) o receptor 2.4 GHz (FDFD); Bluetooth no está soportado. Ningún valor de esta pantalla se envía al firmware." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,9" />
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock Text="Efecto local" FontSize="11" VerticalAlignment="Center" />
                                                         <ComboBox ItemsSource="{Binding LightingEffects}" SelectedItem="{Binding SelectedDevice.LocalProfile.LightingEffect}" Width="145" Margin="8,0,16,0" />
@@ -675,7 +677,7 @@
                                                         <TextBlock Text="{Binding SelectedDevice.LocalProfile.LightingBrightness, StringFormat={}{0}%}" FontSize="11" />
                                                     </StackPanel>
                                                     <TextBlock Text="MAPA REAL DEL CONTROLADOR · 81 TECLAS" Foreground="{StaticResource TextMuted}" FontSize="9" FontWeight="Bold" Margin="0,13,0,5" />
-                                                    <Border Background="#1C272D" CornerRadius="8" Padding="5" Height="190">
+                                                    <Border Background="#262626" CornerRadius="8" Padding="5" Height="190">
                                                         <controls:AjazzKeyboardMap x:Name="AjazzKeyboardMap" KeyColors="{Binding SelectedDevice.LocalProfile.KeyboardKeyColors}" />
                                                     </Border>
                                                     <TextBlock Margin="0,6,0,0" FontSize="10" Foreground="{StaticResource TextMuted}">
@@ -691,63 +693,192 @@
                                                     <TextBlock Text="Selecciona una tecla y asígnale el color RGB de arriba. Pulsa Guardar perfil Nexo para conservar los cambios en este PC." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
                                                 </StackPanel>
                                             </Border>
-                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                            <Border Background="#252525" CornerRadius="10" Padding="12" Margin="0,0,0,9"
                                                     Visibility="{Binding SelectedDevice.IsXboxElite, Converter={StaticResource BoolToVisibility}}">
-                                                <StackPanel>
-                                                    <TextBlock Text="Xbox One Elite · perfil local" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
-                                                    <TextBlock Text="Ajusta las zonas LT/RT usando la misma escala 0–10 de Accesorios de Xbox. Nexo conserva estos valores en un perfil local." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,9" />
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="8" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="8" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="8" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
                                                     <Grid>
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                        <StackPanel Margin="0,0,14,0">
-                                                            <TextBlock Text="LT · punto inicial" FontSize="11" />
-                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.LeftTriggerStart}" />
-                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.LeftTriggerStart, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
-                                                            <TextBlock Text="LT · punto final" FontSize="11" Margin="0,7,0,0" />
-                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.LeftTriggerEnd}" />
-                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.LeftTriggerEnd, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                                        <StackPanel>
+                                                            <TextBlock Text="Mando Xbox Elite" Foreground="{StaticResource Signal}" FontSize="16" FontWeight="Bold" />
+                                                            <TextBlock Text="Solo LB → Menú se envía por GIP. La ranura y su persistencia no están verificadas; el resto del perfil es local." Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,3,0,0" />
                                                         </StackPanel>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="RT · punto inicial" FontSize="11" />
-                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.RightTriggerStart}" />
-                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.RightTriggerStart, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
-                                                            <TextBlock Text="RT · punto final" FontSize="11" Margin="0,7,0,0" />
-                                                            <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.RightTriggerEnd}" />
-                                                            <TextBlock Text="{Binding SelectedDevice.LocalProfile.RightTriggerEnd, StringFormat={}{0}/10}" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                            <ComboBox ItemsSource="{Binding SelectedDevice.LocalProfiles}" SelectedItem="{Binding SelectedDevice.LocalProfile, Mode=TwoWay}"
+                                                                      DisplayMemberPath="Name" Width="210" AutomationProperties.Name="Perfil del mando" />
+                                                            <Button Content="Nuevo" Click="AddDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanAddLocalProfile}"
+                                                                    Style="{StaticResource QuietButton}" Margin="7,0,0,0" Padding="10,7" />
+                                                            <Button Content="Quitar" Click="RemoveDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanDeleteLocalProfile}"
+                                                                    Style="{StaticResource QuietButton}" Margin="7,0,0,0" Padding="10,7" />
                                                         </StackPanel>
                                                     </Grid>
-                                                    <Border Background="#24343D" CornerRadius="8" Padding="10" Margin="0,10,0,0">
-                                                        <StackPanel>
-                                                            <TextBlock Text="PRUEBA EN DIRECTO · XINPUT" Foreground="{StaticResource Signal}" FontSize="9" FontWeight="Bold" />
-                                                            <TextBlock Text="{Binding SelectedDevice.XboxInput.ButtonsLabel}" FontSize="11" Margin="0,5,0,8" TextWrapping="Wrap" />
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <StackPanel Margin="0,0,12,0">
-                                                                    <TextBlock Text="LT · entrada" FontSize="10" Foreground="{StaticResource TextMuted}" />
-                                                                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedDevice.XboxInput.LeftTrigger, Mode=OneWay}" Foreground="{StaticResource Signal}" Background="{StaticResource Line}" Height="7" Margin="0,4,0,0" />
-                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.LeftTrigger, StringFormat={}{0}%}" FontSize="10" Margin="0,3,0,0" />
+                                                    <Grid Grid.Row="2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Expander Header="Cambiar perfil según el juego" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center">
+                                                            <StackPanel Margin="0,7,0,0">
+                                                                <TextBox Text="{Binding SelectedDevice.LocalProfile.ApplicationExecutable, UpdateSourceTrigger=PropertyChanged}"
+                                                                         VerticalContentAlignment="Center" ToolTip="Ejecutable asociado a este perfil" />
+                                                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                                                    <Button Content="Elegir juego" Click="LinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Padding="10,7" />
+                                                                    <Button Content="Quitar" Click="UnlinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
                                                                 </StackPanel>
-                                                                <StackPanel Grid.Column="1">
-                                                                    <TextBlock Text="RT · entrada" FontSize="10" Foreground="{StaticResource TextMuted}" />
-                                                                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedDevice.XboxInput.RightTrigger, Mode=OneWay}" Foreground="{StaticResource Signal}" Background="{StaticResource Line}" Height="7" Margin="0,4,0,0" />
-                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.RightTrigger, StringFormat={}{0}%}" FontSize="10" Margin="0,3,0,0" />
-                                                                </StackPanel>
-                                                            </Grid>
-                                                            <Grid Margin="0,7,0,0">
-                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="Stick izq.: " FontSize="10" Foreground="{StaticResource TextMuted}" />
-                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.LeftStickLabel}" FontSize="10" />
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                    <TextBlock Text="Stick der.: " FontSize="10" Foreground="{StaticResource TextMuted}" />
-                                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.RightStickLabel}" FontSize="10" />
-                                                                </StackPanel>
-                                                            </Grid>
+                                                                <TextBlock Text="Este perfil local se activa al abrir el juego elegido." Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,5,0,0" />
+                                                            </StackPanel>
+                                                        </Expander>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                            <TextBox Text="{Binding SelectedDevice.LocalProfile.Name, UpdateSourceTrigger=PropertyChanged}" Width="170"
+                                                                     VerticalContentAlignment="Center" ToolTip="Nombre del perfil guardado por Nexo" />
+                                                            <Button Content="Guardar en este PC" Click="SaveDeviceProfile" Style="{StaticResource ActionButton}"
+                                                                    Margin="8,0,0,0" Padding="12,8" />
                                                         </StackPanel>
+                                                    </Grid>
+                                                    <TabControl Grid.Row="4" Background="Transparent" BorderThickness="0" MinHeight="330">
+                                                        <TabControl.Resources>
+                                                            <Style TargetType="TabItem">
+                                                                <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="Padding" Value="12,9" />
+                                                                <Setter Property="Margin" Value="0,0,5,0" />
+                                                                <Setter Property="Template">
+                                                                    <Setter.Value>
+                                                                        <ControlTemplate TargetType="TabItem">
+                                                                            <Border x:Name="TabSurface" Background="{TemplateBinding Background}" BorderBrush="Transparent"
+                                                                                    BorderThickness="0,0,0,2" CornerRadius="7,7,0,0" Padding="{TemplateBinding Padding}">
+                                                                                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" />
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsSelected" Value="True">
+                                                                                    <Setter TargetName="TabSurface" Property="Background" Value="#383838" />
+                                                                                    <Setter TargetName="TabSurface" Property="BorderBrush" Value="{StaticResource Signal}" />
+                                                                                    <Setter Property="Foreground" Value="{StaticResource Signal}" />
+                                                                                </Trigger>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter TargetName="TabSurface" Property="Background" Value="#2A2A2A" />
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Style>
+                                                        </TabControl.Resources>
+                                                        <TabItem Header="Macros">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <Border Background="#383838" CornerRadius="0,8,8,8" Padding="14" Margin="0,0,14,0">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="Macros para este mando" FontSize="14" FontWeight="SemiBold" />
+                                                                        <TextBlock Text="Elige en Macros el botón o gesto que inicia cada acción." Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,9" />
+                                                                        <Button Content="Configurar macros" Click="OpenXboxMacros" Style="{StaticResource ActionButton}" Padding="11,7" HorizontalAlignment="Left" />
+                                                                        <Border Background="#2D2D2D" CornerRadius="8" Padding="10" Margin="0,13,0,0">
+                                                                            <StackPanel>
+                                                                                <TextBlock Text="Botones pulsados" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" Margin="0,0,0,5" />
+                                                                                <TextBlock Text="{Binding SelectedDevice.XboxInput.ButtonsLabel}" FontSize="11" TextWrapping="Wrap" />
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                        <TextBlock Text="Las macros funcionan mientras Nexo está abierto; el mando conserva sus botones originales." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </TabItem>
+                                                        <TabItem Header="Palanca izquierda">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <Border Background="#383838" CornerRadius="0,8,8,8" Padding="14" Margin="0,0,14,0">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="Activar una macro al moverla" FontSize="13" FontWeight="SemiBold" />
+                                                                        <TextBlock Text="Umbral de movimiento" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,10,0,0" />
+                                                                        <Slider Minimum="10" Maximum="90" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding SelectedDevice.LocalProfile.LeftStickMacroThresholdPercent}" Margin="0,5,0,0" />
+                                                                        <TextBlock Text="{Binding SelectedDevice.LocalProfile.LeftStickMacroThresholdPercent, StringFormat={}{0:0}%}" Foreground="{StaticResource Signal}" FontSize="13" FontWeight="SemiBold" />
+                                                                        <Border Background="#2D2D2D" CornerRadius="8" Padding="10" Margin="0,13,0,0">
+                                                                            <StackPanel><TextBlock Text="Lectura del stick" Foreground="{StaticResource TextMuted}" FontSize="10" /><TextBlock Text="{Binding SelectedDevice.XboxInput.LeftStickLabel}" FontSize="12" Margin="0,4,0,0" /></StackPanel>
+                                                                        </Border>
+                                                                        <TextBlock Text="Un umbral más alto exige mover más la palanca para iniciar el gesto." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </TabItem>
+                                                        <TabItem Header="Palanca derecha">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <Border Background="#383838" CornerRadius="0,8,8,8" Padding="14" Margin="0,0,14,0">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="Activar una macro al moverla" FontSize="13" FontWeight="SemiBold" />
+                                                                        <TextBlock Text="Umbral de movimiento" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,10,0,0" />
+                                                                        <Slider Minimum="10" Maximum="90" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding SelectedDevice.LocalProfile.RightStickMacroThresholdPercent}" Margin="0,5,0,0" />
+                                                                        <TextBlock Text="{Binding SelectedDevice.LocalProfile.RightStickMacroThresholdPercent, StringFormat={}{0:0}%}" Foreground="{StaticResource Signal}" FontSize="13" FontWeight="SemiBold" />
+                                                                        <Border Background="#2D2D2D" CornerRadius="8" Padding="10" Margin="0,13,0,0">
+                                                                            <StackPanel><TextBlock Text="Lectura del stick" Foreground="{StaticResource TextMuted}" FontSize="10" /><TextBlock Text="{Binding SelectedDevice.XboxInput.RightStickLabel}" FontSize="12" Margin="0,4,0,0" /></StackPanel>
+                                                                        </Border>
+                                                                        <TextBlock Text="Un umbral más alto exige mover más la palanca para iniciar el gesto." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </TabItem>
+                                                        <TabItem Header="Gatillos">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <Border Background="#383838" CornerRadius="0,8,8,8" Padding="14" Margin="0,0,14,0">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="Umbrales para activar macros" FontSize="13" FontWeight="SemiBold" />
+                                                                        <TextBlock Text="Los cambios se guardan en el perfil de Nexo." Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,4,0,10" />
+                                                                        <TextBlock Text="Gatillo izquierdo · inicio" FontSize="11" />
+                                                                        <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.LeftTriggerStart}" />
+                                                                        <TextBlock Text="Gatillo izquierdo · final" FontSize="11" Margin="0,4,0,0" />
+                                                                        <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.LeftTriggerEnd}" />
+                                                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedDevice.XboxInput.LeftTrigger, Mode=OneWay}" Foreground="{StaticResource Signal}" Background="{StaticResource Line}" Height="7" Margin="0,4,0,0" />
+                                                                        <TextBlock Text="Gatillo derecho · inicio" FontSize="11" Margin="0,10,0,0" />
+                                                                        <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.RightTriggerStart}" />
+                                                                        <TextBlock Text="Gatillo derecho · final" FontSize="11" Margin="0,4,0,0" />
+                                                                        <Slider Minimum="0" Maximum="10" Value="{Binding SelectedDevice.LocalProfile.RightTriggerEnd}" />
+                                                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding SelectedDevice.XboxInput.RightTrigger, Mode=OneWay}" Foreground="{StaticResource Signal}" Background="{StaticResource Line}" Height="7" Margin="0,4,0,0" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </TabItem>
+                                                        <TabItem Header="Vibración">
+                                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <Border Background="#383838" CornerRadius="0,8,8,8" Padding="14" Margin="0,0,14,0">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="Prueba rápida" FontSize="13" FontWeight="SemiBold" />
+                                                                        <TextBlock Text="Activa brevemente los dos motores principales." Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                                        <TextBlock Text="No se guarda en el mando ni sustituye la vibración del juego." Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </TabItem>
+                                                        <TabItem Header="Brillo">
+                                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                                <Border Background="#383838" CornerRadius="0,8,8,8" Padding="14" Margin="0,0,14,0">
+                                                                    <StackPanel><TextBlock Text="Brillo del botón Xbox" FontSize="13" FontWeight="SemiBold" /><TextBlock Text="Esta opción aún no está disponible para este mando en Nexo." Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" /></StackPanel>
+                                                                </Border>
+                                                            </Grid>
+                                                        </TabItem>
+                                                    </TabControl>
+                                                    <Border Grid.Row="6" Background="#2A2A2A" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="9,7">
+                                                        <TextBlock Text="El perfil se guarda en este PC; la configuración del mando no cambia."
+                                                                   Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" />
                                                     </Border>
-                                                </StackPanel>
+                                                    <Image Grid.Row="4" Source="{Binding SelectedDevice.ProductImageSource}" Width="360" Height="270"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,22,0"
+                                                           Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" IsHitTestVisible="False"
+                                                           Visibility="{Binding SelectedDevice.HasProductImage, Converter={StaticResource BoolToVisibility}}" />
+                                                    <controls:DeviceIllustration Grid.Row="4" Width="310" Height="270" Kind="{Binding SelectedDevice.VisualKind}"
+                                                                                Accent="{StaticResource Signal}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                                Margin="0,0,22,0" IsHitTestVisible="False"
+                                                                                Visibility="{Binding SelectedDevice.HasProductImage, Converter={StaticResource InverseBoolToVisibility}}" />
+                                                </Grid>
                                             </Border>
-                                            <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,9"
+                                            <Border Background="#252525" CornerRadius="10" Padding="12" Margin="0,0,0,9"
                                                     Visibility="{Binding SelectedDevice.IsAstroA50, Converter={StaticResource BoolToVisibility}}">
                                                 <StackPanel>
                                                     <TextBlock Text="ASTRO A50 · ecualizador de perfil local" Foreground="{StaticResource Signal}" FontSize="10" FontWeight="Bold" />
@@ -764,7 +895,7 @@
                                             <ItemsControl ItemsSource="{Binding SelectedDevice.AudioEndpoints}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                                        <Border Background="#252525" CornerRadius="10" Padding="12" Margin="0,0,0,8">
                                                             <Grid>
                                                                 <Grid.RowDefinitions>
                                                                     <RowDefinition Height="Auto" />
@@ -794,39 +925,44 @@
                                                        Visibility="{Binding SelectedDevice.HasAudioEndpoints, Converter={StaticResource BoolToVisibility}}" />
                                             <TextBlock Text="{Binding SelectedDevice.NoAudioEndpointsMessage}"
                                                        Foreground="{StaticResource TextMuted}" FontSize="12" TextWrapping="Wrap"
-                                                       Visibility="{Binding SelectedDevice.HasAudioEndpoints, Converter={StaticResource InverseBoolToVisibility}}" />
+                                                       Visibility="{Binding SelectedDevice.ShowNoAudioEndpointsMessage, Converter={StaticResource BoolToVisibility}}" />
                                             <TextBlock Text="{Binding ConfigurationStatus}" Foreground="{StaticResource Signal}" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
-                                            <StackPanel Orientation="Horizontal" Margin="0,11,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
+                                            <StackPanel Visibility="{Binding SelectedDevice.IsXboxElite, Converter={StaticResource InverseBoolToVisibility}}">
+                                            <StackPanel Orientation="Horizontal" Margin="0,11,0,0" Visibility="{Binding SelectedDevice.CanManageDeviceProfiles, Converter={StaticResource BoolToVisibility}}">
                                                 <ComboBox ItemsSource="{Binding SelectedDevice.LocalProfiles}" SelectedItem="{Binding SelectedDevice.LocalProfile, Mode=TwoWay}"
-                                                          DisplayMemberPath="Name" Width="230" AutomationProperties.Name="Perfil local del ratón" />
+                                                          DisplayMemberPath="Name" Width="230" AutomationProperties.Name="Perfil local del dispositivo" />
                                                 <Button Content="Nuevo perfil" Click="AddDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanAddLocalProfile}"
                                                         Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
                                                 <Button Content="Quitar" Click="RemoveDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanDeleteLocalProfile}"
                                                         Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="Aplicación" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                <TextBox Text="{Binding SelectedDevice.LocalProfile.ApplicationExecutable, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="260" VerticalContentAlignment="Center" ToolTip="Ruta completa del ejecutable asociado a este perfil local" />
-                                                <Button Content="Elegir .exe" Click="LinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
-                                                <Button Content="Quitar" Click="UnlinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
-                                            </StackPanel>
-                                            <TextBlock Text="El cambio automático solo selecciona un perfil local de Nexo; el primer perfil sin .exe sirve de predeterminado y nada se escribe al ratón."
-                                                       Foreground="{StaticResource TextMuted}" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0"
-                                                       Visibility="{Binding SelectedDevice.IsLogitechMouse, Converter={StaticResource BoolToVisibility}}" />
+                                            <Expander Header="Cambiar perfil según el juego" Foreground="{StaticResource TextMuted}" Margin="0,8,0,0"
+                                                      Visibility="{Binding SelectedDevice.CanManageDeviceProfiles, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel Margin="0,7,0,0">
+                                                    <TextBox Text="{Binding SelectedDevice.LocalProfile.ApplicationExecutable, UpdateSourceTrigger=PropertyChanged}"
+                                                             VerticalContentAlignment="Center" ToolTip="Ejecutable asociado a este perfil" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                                        <Button Content="Elegir juego" Click="LinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Padding="10,7" />
+                                                        <Button Content="Quitar" Click="UnlinkDeviceProfileApplication" Style="{StaticResource QuietButton}" Margin="8,0,0,0" Padding="10,7" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="El perfil se activa al abrir el juego elegido." Foreground="{StaticResource TextMuted}" FontSize="10" Margin="0,5,0,0" />
+                                                </StackPanel>
+                                            </Expander>
                                             <StackPanel Orientation="Horizontal" Margin="0,11,0,0" Visibility="{Binding SelectedDevice.HasLocalEditor, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBox Text="{Binding SelectedDevice.LocalProfile.Name, UpdateSourceTrigger=PropertyChanged}" Width="210" VerticalContentAlignment="Center" ToolTip="Nombre del perfil guardado por Nexo" />
-                                                <Button Content="Guardar perfil Nexo" Click="SaveDeviceProfile" Style="{StaticResource ActionButton}" Margin="10,0,0,0" Padding="12,8" />
-                                                <TextBlock Text="Solo en este PC" Foreground="{StaticResource TextMuted}" FontSize="10" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                <Button Content="Guardar en este PC" Click="SaveDeviceProfile" Style="{StaticResource ActionButton}" Margin="10,0,0,0" Padding="12,8" />
+                                            </StackPanel>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
 
-                                    <TextBlock Text="Funciones y estado de verificación" FontSize="15" FontWeight="Bold" Margin="2,0,0,9" />
+                                    <Expander Header="Detalles del dispositivo" Foreground="{StaticResource TextMuted}" Margin="0,5,0,0"
+                                              Visibility="{Binding SelectedDevice.IsMouse, Converter={StaticResource InverseBoolToVisibility}}">
+                                      <StackPanel Margin="0,8,0,0">
                                     <ItemsControl ItemsSource="{Binding SelectedDevice.Capabilities}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#202E36" CornerRadius="10" Padding="12" Margin="0,0,0,7">
+                                                <Border Background="#2A2A2A" CornerRadius="10" Padding="12" Margin="0,0,0,7">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="155" />
@@ -842,13 +978,15 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <Border Background="#172229" CornerRadius="10" Padding="12" Margin="0,4,0,0">
+                                    <Border Background="#252525" CornerRadius="10" Padding="12" Margin="0,4,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="Identificación y conexiones" Foreground="{StaticResource TextMuted}" FontSize="10" />
+                                            <TextBlock Text="Detalles del dispositivo" Foreground="{StaticResource TextMuted}" FontSize="10" />
                                             <TextBlock Text="{Binding SelectedDevice.IdentificationNote}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" />
                                             <TextBlock Text="{Binding SelectedDevice.Detail}" FontFamily="Segoe UI Mono" FontSize="9" TextWrapping="Wrap" Margin="0,7,0,0" MaxHeight="60" />
                                         </StackPanel>
                                     </Border>
+                                      </StackPanel>
+                                    </Expander>
                                 </StackPanel>
                             </ScrollViewer>
                           </Grid>
@@ -857,6 +995,805 @@
                             <TextBlock Text="Conecta un dispositivo para empezar" FontSize="19" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
                             <TextBlock Text="Nexo detectará sus interfaces y mostrará las funciones disponibles para ese modelo." Foreground="{StaticResource TextMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0" />
                           </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="XboxControllerPanel" Background="#1F1F1F" Padding="22"
+                            Visibility="{Binding SelectedDevice.IsXboxElite, Converter={StaticResource BoolToVisibility}}">
+                        <Grid>
+                            <Grid x:Name="XboxDeviceHome" Visibility="{Binding SelectedDevice.IsShowingXboxHome, Converter={StaticResource BoolToVisibility}}">
+                                <Grid Margin="12,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="2,0,2,12">
+                                        <TextBlock Text="Nexo Device Hub" Foreground="White" FontSize="32" VerticalAlignment="Center" />
+                                        <Button DockPanel.Dock="Right" Content="‹  Dispositivos" Click="ShowDeviceCards"
+                                                Style="{StaticResource XboxFlatButton}" Background="Transparent" BorderThickness="0"
+                                                Padding="12,8" AutomationProperties.Name="Volver a dispositivos" />
+                                    </DockPanel>
+                                    <Grid Grid.Row="1" VerticalAlignment="Top" Margin="0,40,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                            <Border Width="42" Height="42" CornerRadius="21" Background="#303030" BorderBrush="#4B4B4B" BorderThickness="1">
+                                                <Image Source="/Assets/Brand/NexoHub.png" Width="36" Height="36" Margin="3" />
+                                            </Border>
+                                            <TextBlock Text="Nexo"
+                                                       Foreground="#B8B8B8" FontSize="15" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Row="1" Text="Mando inalámbrico Xbox Elite" Foreground="White"
+                                                   FontSize="32" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,18" />
+                                        <Grid Grid.Row="2" Height="38" HorizontalAlignment="Center" MinWidth="560" Margin="0,0,0,2">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="58" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding SelectedDevice.XboxSlot1ProfileName}" Foreground="White" FontSize="15" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="220" Margin="0,0,10,0" />
+                                                <Border Width="24" Height="12" CornerRadius="6" BorderThickness="1.5"
+                                                        ToolTip="Azul: ranura activa si la lectura la distingue; en otro caso indica el perfil previsualizado">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="#F0F0F0" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="1">
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Border Width="10" Height="5" CornerRadius="3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#F0F0F0" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="1">
+                                                                        <Setter Property="Background" Value="{StaticResource XboxBlue}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <Border Width="24" Height="12" CornerRadius="6" BorderThickness="1.5" Margin="0,0,10,0"
+                                                        ToolTip="Azul: ranura activa si la lectura la distingue; en otro caso indica el perfil previsualizado">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="#F0F0F0" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="2">
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Border Width="10" Height="5" CornerRadius="3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#F0F0F0" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="2">
+                                                                        <Setter Property="Background" Value="{StaticResource XboxBlue}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                </Border>
+                                                <TextBlock Text="{Binding SelectedDevice.XboxSlot2ProfileName}" Foreground="White" FontSize="15" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Viewbox Grid.Row="3" Stretch="Uniform" MaxWidth="400" MaxHeight="286" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,22,0,22">
+                                            <Grid Width="700" Height="500">
+                                                <Image Source="{Binding SelectedDevice.ProductImageSource}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Canvas x:Name="XboxHomePreview" Width="700" Height="500" IsHitTestVisible="False" />
+                                            </Grid>
+                                        </Viewbox>
+                                        <Button Grid.Row="4" Content="Configurar" Click="OpenXboxProfiles" Style="{StaticResource XboxFlatButton}"
+                                                Width="430" Height="72" FontSize="17" Padding="18,17" HorizontalAlignment="Center" Margin="0,2,0,0"
+                                                AutomationProperties.Name="Configurar perfiles del mando" />
+                                        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                            <Button Click="OpenXboxProfiles" Style="{StaticResource XboxFlatButton}" Width="58" Height="58"
+                                                    Margin="0,0,14,0" ToolTip="Perfiles" AutomationProperties.Name="Ver perfiles">
+                                                <TextBlock Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="17" />
+                                            </Button>
+                                            <Button Click="ShowXboxHelp" Style="{StaticResource XboxFlatButton}" Width="58" Height="58"
+                                                    Margin="0,0,14,0" ToolTip="Ayuda" AutomationProperties.Name="Ayuda del mando">
+                                                        <TextBlock Text="&#xEA80;" FontFamily="Segoe MDL2 Assets" FontSize="17" />
+                                            </Button>
+                                            <Button Click="OpenXboxMacros" Style="{StaticResource XboxFlatButton}" Width="58" Height="58"
+                                                    ToolTip="Macros" AutomationProperties.Name="Abrir macros">
+                                                <Viewbox Width="18" Height="20" Stretch="Uniform">
+                                                    <Path Data="M 7,1 L 15,1 L 15,3 L 12,3 L 12,9 L 19,19 C 20,21 18,22 16,22 L 6,22 C 4,22 2,21 3,19 L 10,9 L 10,3 L 7,3 Z"
+                                                          Fill="White" />
+                                                </Viewbox>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+                            <Grid x:Name="XboxProfileHub" Visibility="{Binding SelectedDevice.IsShowingXboxProfiles, Converter={StaticResource BoolToVisibility}}">
+                                <Grid Margin="24">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="300" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <DockPanel Grid.Column="0" Margin="0,12,20,12">
+                                        <Button DockPanel.Dock="Top" Content="‹" Click="ReturnXboxToHome"
+                                                Background="Transparent" Foreground="White" BorderThickness="0" FontSize="24"
+                                                HorizontalAlignment="Left" Padding="0" Margin="0,0,0,20"
+                                                AutomationProperties.Name="Volver a dispositivos" />
+                                        <TextBlock DockPanel.Dock="Top" Text="Perfiles" FontSize="27" Margin="0,0,0,22" />
+                                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                                            <TextBlock Text="Perfiles guardados" Foreground="White" Margin="4,0,0,14" />
+                                            <Button Content="＋   Nuevo perfil" Click="AddDeviceLocalProfile" Style="{StaticResource XboxFlatButton}"
+                                                    HorizontalContentAlignment="Left" Padding="13,10" />
+                                        </StackPanel>
+                                        <ListBox ItemsSource="{Binding SelectedDevice.LocalProfiles}"
+                                                 SelectedItem="{Binding SelectedDevice.LocalProfile, Mode=TwoWay}"
+                                                 SelectionChanged="XboxProfileSelectionChanged" Background="Transparent" BorderThickness="0"
+                                                 AutomationProperties.Name="Perfiles del mando">
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem">
+                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Setter Property="Padding" Value="10,8" />
+                                                    <Setter Property="Margin" Value="0,1" />
+                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                <Border x:Name="ProfileRow" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                                                    <ContentPresenter />
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ProfileRow" Property="Background" Value="#353535" /></Trigger>
+                                                                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="ProfileRow" Property="Background" Value="{StaticResource XboxBlue}" /></Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="7,6">
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </DockPanel>
+                                    <Grid Grid.Column="1" Margin="18,0,18,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <TextBox x:Name="XboxProfileNameInput" Text="{Binding SelectedDevice.LocalProfile.DisplayName, UpdateSourceTrigger=PropertyChanged}"
+                                                     TextChanged="XboxProfileNameChanged" Background="Transparent" Foreground="White" BorderThickness="0"
+                                                     IsReadOnly="{Binding SelectedDevice.IsXboxSlotPlaceholder}"
+                                                     FontSize="24" FontWeight="SemiBold" VerticalContentAlignment="Center"
+                                                     AutomationProperties.Name="Nombre del perfil" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding SelectedDevice.XboxProfileSlotLabel}" Foreground="#B8B8B8" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                                <Button Content="✎" Click="FocusXboxProfileName" IsEnabled="{Binding SelectedDevice.CanEditXboxProfile}"
+                                                        ToolTip="Cambiar nombre" Style="{StaticResource XboxFlatButton}"
+                                                        Padding="14,10" Margin="0,0,8,0" AutomationProperties.Name="Cambiar nombre del perfil" />
+                                                <Button Content="⧉" Click="AddDeviceLocalProfile" ToolTip="Duplicar perfil" Style="{StaticResource XboxFlatButton}"
+                                                        Padding="14,10" Margin="0,0,8,0" AutomationProperties.Name="Duplicar perfil" />
+                                                <Button Content="▤" Click="RemoveDeviceLocalProfile" IsEnabled="{Binding SelectedDevice.CanDeleteLocalProfile}"
+                                                        ToolTip="Eliminar perfil" Style="{StaticResource XboxFlatButton}" Padding="14,10"
+                                                        AutomationProperties.Name="Eliminar perfil" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Grid Grid.Row="1" Height="38" Margin="22,0,22,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding SelectedDevice.XboxSlot1ProfileName}" Foreground="White" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="190" Margin="0,0,8,0" />
+                                                <Border Width="22" Height="10" CornerRadius="5" BorderThickness="1.5"
+                                                        ToolTip="Ranura activa cuando se puede identificar; si no, perfil previsualizado">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="#AFAFAF" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="1">
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Border Width="8" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#AFAFAF" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="1">
+                                                                        <Setter Property="Background" Value="{StaticResource XboxBlue}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <Border Width="22" Height="10" CornerRadius="5" BorderThickness="1.5"
+                                                        Margin="0,0,8,0" ToolTip="Ranura activa cuando se puede identificar; si no, perfil previsualizado">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="#AFAFAF" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="2">
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Border Width="8" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#AFAFAF" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding SelectedDevice.XboxHomePreviewSlot}" Value="2">
+                                                                        <Setter Property="Background" Value="{StaticResource XboxBlue}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                </Border>
+                                                <TextBlock Text="{Binding SelectedDevice.XboxSlot2ProfileName}" Foreground="White" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Viewbox Grid.Row="2" Stretch="Uniform" MaxWidth="760" MaxHeight="540" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Grid Width="700" Height="500">
+                                                <Image Source="{Binding SelectedDevice.ProductImageSource}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Canvas x:Name="XboxProfilePreview" Width="700" Height="500" IsHitTestVisible="False" />
+                                            </Grid>
+                                        </Viewbox>
+                                        <StackPanel Grid.Row="3" HorizontalAlignment="Center" Width="430" Margin="0,0,0,12">
+                                            <TextBlock Text="{Binding SelectedDevice.XboxPaddleAssignmentsSummary}" Foreground="White" FontSize="12"
+                                                       TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,12"
+                                                       Visibility="{Binding SelectedDevice.HasXboxPaddleAssignments, Converter={StaticResource BoolToVisibility}}" />
+                                            <Button Content="Configurar" Click="OpenXboxProfileEditor" Style="{StaticResource XboxPrimaryButton}"
+                                                    IsEnabled="{Binding SelectedDevice.CanEditXboxProfile}" FontSize="15" Padding="18,15" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+        <Grid x:Name="XboxProfileEditor" Visibility="{Binding SelectedDevice.IsEditingXboxProfile, Converter={StaticResource BoolToVisibility}}">
+                            <TabControl x:Name="XboxSettingsTabs" Background="Transparent" BorderThickness="0" MinHeight="420">
+                                <TabControl.Resources>
+                                    <Style TargetType="TabControl">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabControl">
+                                                    <Grid KeyboardNavigation.TabNavigation="Local" SnapsToDevicePixels="True">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="64" />
+                                                            <RowDefinition Height="*" />
+                                                        </Grid.RowDefinitions>
+                                                        <Grid Grid.Row="0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="36" />
+                                                                <ColumnDefinition Width="300" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Button Content="‹" Click="ReturnXboxToProfiles" Grid.Column="0" Background="Transparent"
+                                                                    Foreground="White" BorderThickness="0" FontSize="24" Padding="0"
+                                                                    AutomationProperties.Name="Volver a perfiles" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding SelectedDevice.LocalProfile.DisplayName}"
+                                                                       Foreground="{StaticResource TextMain}" FontSize="24" FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center" Margin="20,0,0,0" />
+                                                            <Grid Grid.Column="2">
+                                                                <Border Height="1" Background="#777777" VerticalAlignment="Bottom" />
+                                                                <TabPanel x:Name="HeaderPanel" IsItemsHost="True" VerticalAlignment="Stretch" />
+                                                            </Grid>
+                                                        </Grid>
+                                                        <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent"
+                                                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style TargetType="TabItem">
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Padding" Value="12,12" />
+                                        <Setter Property="Margin" Value="0" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TabItem">
+                                                    <Border x:Name="XboxTabSurface" Background="{TemplateBinding Background}" BorderBrush="Transparent"
+                                                            BorderThickness="0,0,0,3" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="XboxTabSurface" Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                            <Setter Property="Foreground" Value="White" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="XboxTabSurface" Property="Background" Value="#292929" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style x:Key="XboxFlatButton" TargetType="Button">
+                                        <Setter Property="Background" Value="#303030" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="BorderBrush" Value="#414141" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="XboxButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="XboxButtonSurface" Property="Background" Value="#3A3A3A" /></Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="XboxButtonSurface" Property="Opacity" Value="0.45" /></Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style x:Key="XboxPrimaryButton" TargetType="Button" BasedOn="{StaticResource XboxFlatButton}">
+                                        <Setter Property="Background" Value="{StaticResource XboxBlue}" />
+                                        <Setter Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Style>
+                                    <Style x:Key="XboxEditorCheckBox" TargetType="CheckBox">
+                                        <Setter Property="Foreground" Value="{StaticResource TextMain}" />
+                                        <Setter Property="Background" Value="#303030" />
+                                        <Setter Property="Padding" Value="12" />
+                                        <Setter Property="MinHeight" Value="48" />
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                        <Setter Property="ContentTemplate">
+                                            <Setter.Value>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                                                </DataTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="CheckBox">
+                                                    <Border x:Name="XboxCheckSurface" Background="{TemplateBinding Background}"
+                                                            BorderBrush="Transparent" BorderThickness="1" CornerRadius="4"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="24" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <ContentPresenter Margin="0,0,10,0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                                              Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                              ContentStringFormat="{TemplateBinding ContentStringFormat}" />
+                                                            <Border x:Name="XboxCheckIndicator" Grid.Column="1" Width="18" Height="18"
+                                                                    Background="Transparent" BorderBrush="#C4C4C4" BorderThickness="2"
+                                                                    CornerRadius="1" VerticalAlignment="Center">
+                                                                <Path x:Name="XboxCheckMark" Data="M 2,8 L 6,12 L 15,3" Stroke="White"
+                                                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                                      Visibility="Collapsed" />
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="XboxCheckSurface" Property="Background" Value="#383838" />
+                                                            <Setter TargetName="XboxCheckSurface" Property="BorderBrush" Value="#484848" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsKeyboardFocused" Value="True">
+                                                            <Setter TargetName="XboxCheckSurface" Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="XboxCheckIndicator" Property="Background" Value="{StaticResource XboxBlue}" />
+                                                            <Setter TargetName="XboxCheckIndicator" Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                            <Setter TargetName="XboxCheckMark" Property="Visibility" Value="Visible" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="XboxCheckSurface" Property="Opacity" Value="0.45" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style x:Key="XboxHotspot" TargetType="RadioButton">
+                                        <Setter Property="Width" Value="32" />
+                                        <Setter Property="Height" Value="32" />
+                                        <Setter Property="Foreground" Value="{StaticResource XboxBlue}" />
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="BorderBrush" Value="Transparent" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Setter Property="FontSize" Value="11" />
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Opacity" Value="1" />
+                                        <Setter Property="GroupName" Value="XboxPhysicalButton" />
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="RadioButton">
+                                                    <Border x:Name="XboxSpot" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="16">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="XboxSpot" Property="Background" Value="#550078D4" />
+                                                            <Setter TargetName="XboxSpot" Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                            <Setter Property="Opacity" Value="1" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="XboxSpot" Property="BorderBrush" Value="{StaticResource XboxBlue}" />
+                                                            <Setter Property="Opacity" Value="1" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TabControl.Resources>
+                                <TabItem Header="Asignación">
+                                    <Grid Margin="26,18,18,14">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="310" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" MaxWidth="290" VerticalAlignment="Top">
+                                            <TextBlock Text="Elige un botón para asignar, o mantenlo presionado." FontSize="13" TextWrapping="Wrap" Margin="0,12,0,20" />
+                                            <ComboBox x:Name="XboxPhysicalButtonSelector" ItemsSource="{Binding SelectedDevice.XboxPhysicalButtons}"
+                                                      SelectedItem="{Binding SelectedDevice.SelectedXboxPhysicalButton, Mode=TwoWay}"
+                                                      Background="#303030" Foreground="White" BorderBrush="#444444" Padding="14,12"
+                                                      SelectionChanged="XboxPhysicalButtonSelectionChanged" AutomationProperties.Name="Botón que quieres cambiar" />
+                                            <TextBlock Text="Asignar a" FontSize="12" Margin="0,10,0,6" />
+                                            <ComboBox ItemsSource="{Binding SelectedDevice.XboxAssignmentOptions}"
+                                                      x:Name="XboxAssignmentSelector"
+                                                      SelectedItem="{Binding SelectedDevice.SelectedXboxAssignment, Mode=TwoWay}"
+                                                      Background="#303030" Foreground="White" BorderBrush="#444444" Padding="14,12"
+                                                      SelectionChanged="XboxAssignmentSelectionChanged"
+                                                      AutomationProperties.Name="Función asignada al botón" />
+                                            <Border Background="#303030" CornerRadius="4" Padding="10" Margin="0,14,0,0">
+                                                <StackPanel>
+                                                    <TextBlock Text="Entrada del mando" Foreground="#B8B8B8" FontSize="11" />
+                                                    <TextBlock Text="{Binding SelectedDevice.XboxInput.ButtonsLabel}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                            <CheckBox Content="Intercambiar sticks" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxSwapSticks}"
+                                                      Foreground="White" Background="#303030" Padding="12" Margin="0,28,0,0" />
+                                            <CheckBox Content="Invertir el eje Y del stick derecho" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxInvertRightStickY}"
+                                                      Foreground="White" Background="#303030" Padding="12" Margin="0,8,0,0" />
+                                            <CheckBox Content="Invertir el eje Y del stick izquierdo" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxInvertLeftStickY}"
+                                                      Foreground="White" Background="#303030" Padding="12" Margin="0,8,0,0" />
+                                            <CheckBox Content="Intercambiar gatillos" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxSwapTriggers}"
+                                                      Foreground="White" Background="#303030" Padding="12" Margin="0,8,0,0" />
+                                            <Button Content="Restablecer a los valores predeterminados" Click="ResetXboxProfile"
+                                                    Style="{StaticResource XboxFlatButton}" HorizontalAlignment="Stretch" Margin="0,14,0,0" Padding="12,12" />
+                                        </StackPanel>
+                                        <Grid Grid.Column="1" Margin="12,0,0,0">
+                                            <Viewbox Stretch="Uniform" MaxWidth="700" MaxHeight="535" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Grid Width="700" Height="500">
+                                                    <Image Source="{Binding SelectedDevice.ProductImageSource}" Stretch="Fill" />
+                                                    <Image Source="{Binding SelectedDevice.XboxBackImageSource}" Stretch="Fill"
+                                                           Visibility="{Binding SelectedDevice.IsXboxControllerBackView, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Canvas Width="700" Height="500" IsHitTestVisible="False"
+                                                            Visibility="{Binding SelectedDevice.IsXboxControllerBackView, Converter={StaticResource InverseBoolToVisibility}}">
+                                                        <Polyline Points="146,118 96,74 24,74" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <Ellipse Canvas.Left="14" Canvas.Top="64" Width="20" Height="20" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <TextBlock Canvas.Left="19" Canvas.Top="62" Text="−" Foreground="{StaticResource XboxBlue}" FontSize="13" FontWeight="Bold" />
+                                                        <Polyline Points="438,234 500,286 616,286" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <Ellipse Canvas.Left="608" Canvas.Top="276" Width="20" Height="20" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <TextBlock Canvas.Left="613" Canvas.Top="274" Text="−" Foreground="{StaticResource XboxBlue}" FontSize="13" FontWeight="Bold" />
+                                                        <Polyline Points="138,51 112,24 77,24" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <TextBlock Canvas.Left="4" Canvas.Top="9" Width="92" Text="0 – 10   LT" Foreground="{StaticResource XboxBlue}" FontSize="13" />
+                                                        <Polyline Points="562,51 588,24 623,24" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <TextBlock Canvas.Left="608" Canvas.Top="9" Width="88" Text="RT   0 – 10" TextAlignment="Right"
+                                                                   Foreground="{StaticResource XboxBlue}" FontSize="13" />
+                                                        <Polyline Points="350,150 350,35" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <TextBlock Canvas.Left="304" Canvas.Top="11" Text="{Binding SelectedDevice.LocalProfile.Name}" Foreground="{StaticResource XboxBlue}" FontSize="13" />
+                                                    </Canvas>
+                                                    <Canvas x:Name="XboxFrontHotspots" Width="700" Height="500"
+                                                            Visibility="{Binding SelectedDevice.IsXboxControllerBackView, Converter={StaticResource InverseBoolToVisibility}}">
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="LB" Tag="LB" Canvas.Left="74" Canvas.Top="20" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="RB" Tag="RB" Canvas.Left="590" Canvas.Top="20" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="LT" Tag="LT" Canvas.Left="120" Canvas.Top="33" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="RT" Tag="RT" Canvas.Left="544" Canvas.Top="33" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="X" Tag="Botón X" Canvas.Left="472" Canvas.Top="112" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="Y" Tag="Botón Y" Canvas.Left="530" Canvas.Top="69" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="B" Tag="Botón B" Canvas.Left="579" Canvas.Top="114" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="A" Tag="Botón A" Canvas.Left="528" Canvas.Top="159" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="LS" Tag="Palanca izquierda" Canvas.Left="128" Canvas.Top="100" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="RS" Tag="Palanca derecha" Canvas.Left="420" Canvas.Top="216" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="↑" Tag="Cruceta arriba" Canvas.Left="245" Canvas.Top="216" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="↓" Tag="Cruceta abajo" Canvas.Left="245" Canvas.Top="254" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="←" Tag="Cruceta izquierda" Canvas.Left="226" Canvas.Top="235" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="→" Tag="Cruceta derecha" Canvas.Left="264" Canvas.Top="235" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="Ver" Tag="Botón Ver" Canvas.Left="270" Canvas.Top="119" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="≡" Tag="Botón Menú" Canvas.Left="373" Canvas.Top="119" Checked="SelectXboxButtonHotspot" />
+                                                    </Canvas>
+                                                    <Canvas x:Name="XboxRearHotspots" Width="700" Height="500"
+                                                            Visibility="{Binding SelectedDevice.IsXboxControllerBackView, Converter={StaticResource BoolToVisibility}}">
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="P1" Tag="Paleta P1" Canvas.Left="189" Canvas.Top="233" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="P2" Tag="Paleta P2" Canvas.Left="189" Canvas.Top="273" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="P3" Tag="Paleta P3" Canvas.Left="474" Canvas.Top="233" Checked="SelectXboxButtonHotspot" />
+                                                        <RadioButton Style="{StaticResource XboxHotspot}" Content="P4" Tag="Paleta P4" Canvas.Left="474" Canvas.Top="273" Checked="SelectXboxButtonHotspot" />
+                                                    </Canvas>
+                                                </Grid>
+                                            </Viewbox>
+                                        </Grid>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Palanca izquierda">
+                                    <Grid Margin="26,18,18,14">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="330" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" MaxWidth="290" VerticalAlignment="Top">
+                                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                                <TextBlock Text="✛" FontSize="24" Margin="0,0,12,0" />
+                                                <TextBlock Text="Usa la cruceta para ajustar el stick." FontSize="13" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <TextBlock Text="Mueve el stick para obtener una vista previa de los ajustes." FontSize="13" TextWrapping="Wrap" Margin="0,42,0,22" />
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+                                                <StackPanel>
+                                                    <TextBlock Text="Curva de sensibilidad" FontSize="13" Margin="0,0,0,6" />
+                                                    <ComboBox Tag="Left" ItemsSource="{Binding SelectedDevice.XboxStickCurves}" SelectedItem="{Binding SelectedDevice.LocalProfile.XboxLeftStickCurve}"
+                                                              SelectionChanged="UpdateXboxStickCurve" AutomationProperties.Name="Curva de sensibilidad de la palanca izquierda" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <TextBlock Text="Ajuste de la curva" FontSize="13" Margin="0,0,0,4" />
+                                                    <Slider x:Name="XboxLeftStickCurveSlider" Tag="Left" Minimum="0" Maximum="10" TickFrequency="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True"
+                                                            Value="{Binding SelectedDevice.LocalProfile.XboxLeftStickCurveAdjustment, Mode=TwoWay}"
+                                                            Foreground="{StaticResource XboxBlue}" ValueChanged="UpdateXboxStickCurve" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#202020" BorderBrush="#454545" BorderThickness="1" Width="290" Height="160">
+                                                <Canvas Width="288" Height="158">
+                                                    <Line X1="28.8" Y1="0" X2="28.8" Y2="158" Stroke="#343434" /><Line X1="57.6" Y1="0" X2="57.6" Y2="158" Stroke="#343434" />
+                                                    <Line X1="86.4" Y1="0" X2="86.4" Y2="158" Stroke="#343434" /><Line X1="115.2" Y1="0" X2="115.2" Y2="158" Stroke="#343434" />
+                                                    <Line X1="144" Y1="0" X2="144" Y2="158" Stroke="#343434" /><Line X1="172.8" Y1="0" X2="172.8" Y2="158" Stroke="#343434" />
+                                                    <Line X1="201.6" Y1="0" X2="201.6" Y2="158" Stroke="#343434" /><Line X1="230.4" Y1="0" X2="230.4" Y2="158" Stroke="#343434" />
+                                                    <Line X1="259.2" Y1="0" X2="259.2" Y2="158" Stroke="#343434" />
+                                                    <Line X1="0" Y1="15.8" X2="288" Y2="15.8" Stroke="#343434" /><Line X1="0" Y1="31.6" X2="288" Y2="31.6" Stroke="#343434" />
+                                                    <Line X1="0" Y1="47.4" X2="288" Y2="47.4" Stroke="#343434" /><Line X1="0" Y1="63.2" X2="288" Y2="63.2" Stroke="#343434" />
+                                                    <Line X1="0" Y1="79" X2="288" Y2="79" Stroke="#343434" /><Line X1="0" Y1="94.8" X2="288" Y2="94.8" Stroke="#343434" />
+                                                    <Line X1="0" Y1="110.6" X2="288" Y2="110.6" Stroke="#343434" /><Line X1="0" Y1="126.4" X2="288" Y2="126.4" Stroke="#343434" />
+                                                    <Line X1="0" Y1="142.2" X2="288" Y2="142.2" Stroke="#343434" />
+                                                    <Polyline x:Name="XboxLeftStickCurveLine" Points="0,158 72,120 72,72 288,0" Stroke="{StaticResource XboxBlue}" StrokeThickness="3" />
+                                                </Canvas>
+                                            </Border>
+                                            <CheckBox Content="Usar cálculo radial" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxLeftStickRadialCalculation}"
+                                                      Margin="0,10,0,0" />
+                                        </StackPanel>
+                                        <Viewbox Grid.Column="1" Stretch="Uniform" MaxWidth="760" MaxHeight="560" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Grid Width="1080" Height="1080">
+                                                <Image Source="{Binding SelectedDevice.XboxLeftStickImageSource}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Canvas Width="1080" Height="1080" IsHitTestVisible="False">
+                                                    <Ellipse Canvas.Left="150" Canvas.Top="150" Width="780" Height="780" Stroke="#E6E6E6" StrokeThickness="2" />
+                                                    <Ellipse Canvas.Left="210" Canvas.Top="210" Width="660" Height="660" Stroke="#858585" StrokeThickness="2" />
+                                                    <Ellipse Canvas.Left="270" Canvas.Top="270" Width="540" Height="540" Stroke="#555555" StrokeThickness="2" />
+                                                    <Canvas Width="1080" Height="1080" IsHitTestVisible="False">
+                                                        <Canvas.RenderTransform>
+                                                            <TranslateTransform X="{Binding SelectedDevice.XboxInput.LeftStickPreviewX}"
+                                                                                Y="{Binding SelectedDevice.XboxInput.LeftStickPreviewY}" />
+                                                        </Canvas.RenderTransform>
+                                                        <Ellipse Canvas.Left="516" Canvas.Top="516" Width="48" Height="48" Stroke="{StaticResource XboxBlue}" StrokeThickness="3" />
+                                                        <Line X1="540" Y1="510" X2="540" Y2="570" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <Line X1="510" Y1="540" X2="570" Y2="540" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                    </Canvas>
+                                                </Canvas>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Palanca derecha">
+                                    <Grid Margin="26,18,18,14">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="330" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" MaxWidth="290" VerticalAlignment="Top">
+                                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                                <TextBlock Text="✛" FontSize="24" Margin="0,0,12,0" />
+                                                <TextBlock Text="Usa la cruceta para ajustar el stick." FontSize="13" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <TextBlock Text="Mueve el stick para obtener una vista previa de los ajustes." FontSize="13" TextWrapping="Wrap" Margin="0,42,0,22" />
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+                                                <StackPanel>
+                                                    <TextBlock Text="Curva de sensibilidad" FontSize="13" Margin="0,0,0,6" />
+                                                    <ComboBox Tag="Right" ItemsSource="{Binding SelectedDevice.XboxStickCurves}" SelectedItem="{Binding SelectedDevice.LocalProfile.XboxRightStickCurve}"
+                                                              SelectionChanged="UpdateXboxStickCurve" AutomationProperties.Name="Curva de sensibilidad de la palanca derecha" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <TextBlock Text="Ajuste de la curva" FontSize="13" Margin="0,0,0,4" />
+                                                    <Slider x:Name="XboxRightStickCurveSlider" Tag="Right" Minimum="0" Maximum="10" TickFrequency="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True"
+                                                            Value="{Binding SelectedDevice.LocalProfile.XboxRightStickCurveAdjustment, Mode=TwoWay}"
+                                                            Foreground="{StaticResource XboxBlue}" ValueChanged="UpdateXboxStickCurve" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#202020" BorderBrush="#454545" BorderThickness="1" Width="290" Height="160">
+                                                <Canvas Width="288" Height="158">
+                                                    <Line X1="28.8" Y1="0" X2="28.8" Y2="158" Stroke="#343434" /><Line X1="57.6" Y1="0" X2="57.6" Y2="158" Stroke="#343434" />
+                                                    <Line X1="86.4" Y1="0" X2="86.4" Y2="158" Stroke="#343434" /><Line X1="115.2" Y1="0" X2="115.2" Y2="158" Stroke="#343434" />
+                                                    <Line X1="144" Y1="0" X2="144" Y2="158" Stroke="#343434" /><Line X1="172.8" Y1="0" X2="172.8" Y2="158" Stroke="#343434" />
+                                                    <Line X1="201.6" Y1="0" X2="201.6" Y2="158" Stroke="#343434" /><Line X1="230.4" Y1="0" X2="230.4" Y2="158" Stroke="#343434" />
+                                                    <Line X1="259.2" Y1="0" X2="259.2" Y2="158" Stroke="#343434" />
+                                                    <Line X1="0" Y1="15.8" X2="288" Y2="15.8" Stroke="#343434" /><Line X1="0" Y1="31.6" X2="288" Y2="31.6" Stroke="#343434" />
+                                                    <Line X1="0" Y1="47.4" X2="288" Y2="47.4" Stroke="#343434" /><Line X1="0" Y1="63.2" X2="288" Y2="63.2" Stroke="#343434" />
+                                                    <Line X1="0" Y1="79" X2="288" Y2="79" Stroke="#343434" /><Line X1="0" Y1="94.8" X2="288" Y2="94.8" Stroke="#343434" />
+                                                    <Line X1="0" Y1="110.6" X2="288" Y2="110.6" Stroke="#343434" /><Line X1="0" Y1="126.4" X2="288" Y2="126.4" Stroke="#343434" />
+                                                    <Line X1="0" Y1="142.2" X2="288" Y2="142.2" Stroke="#343434" />
+                                                    <Polyline x:Name="XboxRightStickCurveLine" Points="0,158 72,120 72,72 288,0" Stroke="{StaticResource XboxBlue}" StrokeThickness="3" />
+                                                </Canvas>
+                                            </Border>
+                                            <CheckBox Content="Usar cálculo radial" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxRightStickRadialCalculation}"
+                                                      Margin="0,10,0,0" />
+                                        </StackPanel>
+                                        <Viewbox Grid.Column="1" Stretch="Uniform" MaxWidth="760" MaxHeight="560" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Grid Width="1080" Height="1080">
+                                                <Image Source="{Binding SelectedDevice.XboxRightStickImageSource}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Canvas Width="1080" Height="1080" IsHitTestVisible="False">
+                                                    <Ellipse Canvas.Left="150" Canvas.Top="150" Width="780" Height="780" Stroke="#E6E6E6" StrokeThickness="2" />
+                                                    <Ellipse Canvas.Left="210" Canvas.Top="210" Width="660" Height="660" Stroke="#858585" StrokeThickness="2" />
+                                                    <Ellipse Canvas.Left="270" Canvas.Top="270" Width="540" Height="540" Stroke="#555555" StrokeThickness="2" />
+                                                    <Canvas Width="1080" Height="1080" IsHitTestVisible="False">
+                                                        <Canvas.RenderTransform>
+                                                            <TranslateTransform X="{Binding SelectedDevice.XboxInput.RightStickPreviewX}"
+                                                                                Y="{Binding SelectedDevice.XboxInput.RightStickPreviewY}" />
+                                                        </Canvas.RenderTransform>
+                                                        <Ellipse Canvas.Left="516" Canvas.Top="516" Width="48" Height="48" Stroke="{StaticResource XboxBlue}" StrokeThickness="3" />
+                                                        <Line X1="540" Y1="510" X2="540" Y2="570" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                        <Line X1="510" Y1="540" X2="570" Y2="540" Stroke="{StaticResource XboxBlue}" StrokeThickness="2" />
+                                                    </Canvas>
+                                                </Canvas>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Gatillos">
+                                    <Grid Margin="26,18,18,14">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" MaxWidth="340">
+                                            <TextBlock Text="Mueve los controles deslizantes para ajustar las zonas muertas, luego aprieta el gatillo para probarlo." FontSize="13" TextWrapping="Wrap" Margin="0,15,0,20" />
+                                            <Border Background="#303030" CornerRadius="4" Padding="14" Margin="0,0,0,12">
+                                                <StackPanel>
+                                                    <TextBlock Text="Gatillo izquierdo" FontSize="14" FontWeight="SemiBold" />
+                                                    <Grid Height="74" Margin="0,8,0,0">
+                                                        <Grid.RowDefinitions><RowDefinition Height="20" /><RowDefinition Height="34" /><RowDefinition Height="20" /></Grid.RowDefinitions>
+                                                        <TextBlock Grid.Row="0" Text="{Binding Value, ElementName=LeftTriggerStartSlider, StringFormat={}{0:0}}" />
+                                                        <Grid Grid.Row="1" Height="34">
+                                                        <Border Height="4" Background="{StaticResource XboxBlue}" VerticalAlignment="Center" />
+                                                        <UniformGrid Columns="11" IsHitTestVisible="False">
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                        </UniformGrid>
+                                                        <Slider x:Name="LeftTriggerStartSlider" Minimum="0" Maximum="100" TickFrequency="10" Value="{Binding SelectedDevice.LocalProfile.XboxLeftTriggerDeadzoneStart, Mode=TwoWay}"
+                                                                Style="{StaticResource XboxTriggerHandleSlider}" VerticalAlignment="Top" AutomationProperties.Name="Inicio del gatillo izquierdo" />
+                                                        <Slider x:Name="LeftTriggerEndSlider" Minimum="0" Maximum="100" TickFrequency="10" Value="{Binding SelectedDevice.LocalProfile.XboxLeftTriggerDeadzoneEnd, Mode=TwoWay}"
+                                                                Style="{StaticResource XboxTriggerHandleSlider}" VerticalAlignment="Bottom" AutomationProperties.Name="Final del gatillo izquierdo" />
+                                                        </Grid>
+                                                        <TextBlock Grid.Row="2" Margin="12,0,0,0" Text="{Binding Value, ElementName=LeftTriggerEndSlider, StringFormat={}{0:0}}" />
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Background="#303030" CornerRadius="4" Padding="14">
+                                                <StackPanel>
+                                                    <TextBlock Text="Gatillo derecho" FontSize="14" FontWeight="SemiBold" />
+                                                    <Grid Height="74" Margin="0,8,0,0">
+                                                        <Grid.RowDefinitions><RowDefinition Height="20" /><RowDefinition Height="34" /><RowDefinition Height="20" /></Grid.RowDefinitions>
+                                                        <TextBlock Grid.Row="0" Text="{Binding Value, ElementName=RightTriggerStartSlider, StringFormat={}{0:0}}" />
+                                                        <Grid Grid.Row="1" Height="34">
+                                                        <Border Height="4" Background="{StaticResource XboxBlue}" VerticalAlignment="Center" />
+                                                        <UniformGrid Columns="11" IsHitTestVisible="False">
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                            <Border Width="1" Height="12" Background="#909090" /><Border Width="1" Height="12" Background="#909090" />
+                                                        </UniformGrid>
+                                                        <Slider x:Name="RightTriggerStartSlider" Minimum="0" Maximum="100" TickFrequency="10" Value="{Binding SelectedDevice.LocalProfile.XboxRightTriggerDeadzoneStart, Mode=TwoWay}"
+                                                                Style="{StaticResource XboxTriggerHandleSlider}" VerticalAlignment="Top" AutomationProperties.Name="Inicio del gatillo derecho" />
+                                                        <Slider x:Name="RightTriggerEndSlider" Minimum="0" Maximum="100" TickFrequency="10" Value="{Binding SelectedDevice.LocalProfile.XboxRightTriggerDeadzoneEnd, Mode=TwoWay}"
+                                                                Style="{StaticResource XboxTriggerHandleSlider}" VerticalAlignment="Bottom" AutomationProperties.Name="Final del gatillo derecho" />
+                                                        </Grid>
+                                                        <TextBlock Grid.Row="2" Margin="12,0,0,0" Text="{Binding Value, ElementName=RightTriggerEndSlider, StringFormat={}{0:0}}" />
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                            <CheckBox Content="Reflejar gatillo" Style="{StaticResource XboxEditorCheckBox}"
+                                                      IsChecked="{Binding SelectedDevice.LocalProfile.XboxMirrorTriggers}" Margin="0,12,0,0" />
+                                        </StackPanel>
+                                        <Viewbox Grid.Column="1" Stretch="Uniform" MaxWidth="760" MaxHeight="560" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Grid Width="1080" Height="1080">
+                                                <Image Source="{Binding SelectedDevice.XboxLeftTriggerImageSource}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Canvas Width="1080" Height="1080" IsHitTestVisible="False">
+                                                    <Path Data="M 390,160 A 300,300 0 0 0 390,760" Stroke="#A0A0A0" StrokeThickness="15" StrokeDashArray="0.05,1.1" StrokeDashCap="Round" />
+                                                </Canvas>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Vibración">
+                                    <Grid Margin="26,18,18,14">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="360" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" MaxWidth="340">
+                                            <TextBlock Text="Mueve los controles deslizantes para ajustar y sentir la intensidad de la vibración." FontSize="13" TextWrapping="Wrap" Margin="0,15,0,18" />
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+                                                <StackPanel><TextBlock Text="Gatillo izquierdo" /><Slider x:Name="XboxLeftTriggerVibrationSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="BottomRight" Value="{Binding SelectedDevice.LocalProfile.XboxLeftTriggerVibration, Mode=TwoWay}" Foreground="{StaticResource XboxBlue}" /></StackPanel>
+                                            </Border>
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+                                                <StackPanel><TextBlock Text="Vibración izquierda principal" /><Slider x:Name="XboxLeftMainVibrationSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="BottomRight" Value="{Binding SelectedDevice.LocalProfile.XboxLeftMainVibration, Mode=TwoWay}" Foreground="{StaticResource XboxBlue}" /></StackPanel>
+                                            </Border>
+                                            <Border Background="#303030" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+                                                <StackPanel><TextBlock Text="Gatillo derecho" /><Slider x:Name="XboxRightTriggerVibrationSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="BottomRight" Value="{Binding SelectedDevice.LocalProfile.XboxRightTriggerVibration, Mode=TwoWay}" Foreground="{StaticResource XboxBlue}" /></StackPanel>
+                                            </Border>
+                                            <Border Background="#303030" CornerRadius="4" Padding="12">
+                                                <StackPanel><TextBlock Text="Vibración derecha principal" /><Slider x:Name="XboxRightMainVibrationSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="BottomRight" Value="{Binding SelectedDevice.LocalProfile.XboxRightMainVibration, Mode=TwoWay}" Foreground="{StaticResource XboxBlue}" /></StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        <Viewbox Grid.Column="1" Stretch="Uniform" MaxWidth="740" MaxHeight="520" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Grid Width="680" Height="480">
+                                                <Image Source="{Binding SelectedDevice.XboxBackImageSource}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <Canvas Width="680" Height="480" IsHitTestVisible="False">
+                                                    <Ellipse Canvas.Left="74" Canvas.Top="4" Width="104" Height="104" Stroke="#D0D0D0" StrokeThickness="5" Opacity="0.7" />
+                                                    <Ellipse Canvas.Left="502" Canvas.Top="4" Width="104" Height="104" Stroke="#D0D0D0" StrokeThickness="5" Opacity="0.7" />
+                                                    <Ellipse Canvas.Left="22" Canvas.Top="346" Width="120" Height="120" Stroke="#D0D0D0" StrokeThickness="5" Opacity="0.7" />
+                                                    <Ellipse Canvas.Left="538" Canvas.Top="346" Width="120" Height="120" Stroke="#D0D0D0" StrokeThickness="5" Opacity="0.7" />
+                                                </Canvas>
+                                            </Grid>
+                                        </Viewbox>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Brillo">
+                                    <Grid Margin="26,18,18,14">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="430" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" MaxWidth="420" VerticalAlignment="Top">
+                                            <TextBlock Text="Ajusta el brillo del botón Xbox para este perfil. El cambio se guarda como copia local en Nexo." FontSize="13" TextWrapping="Wrap" Margin="0,20,0,25" />
+                                            <Border Background="#303030" CornerRadius="4" Padding="14">
+                                                <StackPanel>
+                                                    <TextBlock Text="Brillo" FontSize="13" />
+                                                    <Slider x:Name="XboxBrightnessSlider" Minimum="0" Maximum="100" Value="{Binding SelectedDevice.LocalProfile.XboxButtonBrightness, Mode=TwoWay}"
+                                                            Style="{StaticResource XboxBrightnessSliderStyle}" Margin="0,12,0,0" AutomationProperties.Name="Brillo del botón Xbox" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        <Image Grid.Column="1" Source="{Binding SelectedDevice.XboxBrightnessImageSource}" MaxWidth="600" MaxHeight="550"
+                                               Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                                    </Grid>
+                                </TabItem>
+                            </TabControl>
+                            </Grid>
                         </Grid>
                     </Border>
                     </Grid>

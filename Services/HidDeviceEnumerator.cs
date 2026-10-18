@@ -85,8 +85,11 @@ public sealed class HidDeviceEnumerator
                 DeviceKind.Mouse, false, "Windows confirma un ratón Logitech en el receptor C547; falta respuesta del dispositivo para confirmar el modelo exacto.");
         if (vendor == 0x046D && product == 0xC52B)
             return new("logitech-usb-receiver", "Logitech", "Receptor Logitech USB", vendor, product, DeviceKind.Receiver, true, "Windows registra Logitech USB Input Device; no se identificó el periférico emparejado.");
-        if ((vendor == 0x0C45 && product == 0x8006) || text.Contains("AK820", StringComparison.OrdinalIgnoreCase))
-            return new("ajazz-ak820", "AJAZZ", "AK820 · variante Pro probable", vendor, product, DeviceKind.Keyboard, false, "Windows anuncia AK820 por Bluetooth; el paquete local AK820 Pro declara PID 8009, el USB conectado informa 8006.");
+        if ((vendor == 0x0C45 && product is 0x8009 or 0x800A) || text.Contains("AK820", StringComparison.OrdinalIgnoreCase))
+            return new("ajazz-ak820", "AJAZZ", "AK820", vendor, product, DeviceKind.Keyboard, false,
+                product is 0x8009 or 0x800A
+                    ? "El paquete local AJAZZ declara estos PID para el AK820 por USB."
+                    : "Windows identifica el modelo AK820; la configuración por Bluetooth no está soportada por AJAZZ.");
         if (vendor == 0x0C45 && product == 0xFDFD)
             return new("ajazz-24g-receiver", "AJAZZ", "Receptor AJAZZ 2.4 GHz", vendor, product, DeviceKind.Receiver, true, "Interfaz del receptor; no es el teclado configurable.");
         if (vendor == 0x0B05 && product == 0x19AF)
@@ -94,7 +97,7 @@ public sealed class HidDeviceEnumerator
 
         var rootName = FirstUseful(root.RootFriendlyName, root.RootDescription, root.Product);
         var utility = !IsPhysicalRoot(root.RootInstanceId) ||
-            ContainsAny(rootName, "USB Input Device", "USB Receiver", "Receptor", "Dispositivo de entrada USB", "Dispositivo compuesto USB", "HID Device", "HID Keyboard Device", "Keyboard Device", "@keyboard.inf", "G HUB Virtual Keyboard");
+            ContainsAny(rootName, "USB Input Device", "USB Composite Device", "USB Receiver", "Receptor", "Dispositivo de entrada USB", "Dispositivo compuesto USB", "HID Device", "HID Keyboard Device", "Keyboard Device", "@keyboard.inf", "G HUB Virtual Keyboard");
         var kind = InferKind(endpoints);
         var manufacturer = FirstUseful(root.RootManufacturer, root.Manufacturer, ManufacturerFor(vendor));
         return new($"hid-{vendor:X4}-{product:X4}", manufacturer,
